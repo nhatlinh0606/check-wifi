@@ -5,6 +5,7 @@ import {
   ScanStatus,
   ScanHistoryItem,
   RecoveryCase,
+  PasswordTraceResult,
 } from '../types';
 
 const API_BASE = '/api';
@@ -33,6 +34,19 @@ export async function fetchWifiNetworks(rescan = false): Promise<WifiNetwork[]> 
 export async function fetchSavedWifiProfiles(): Promise<Array<{ name: string; uuid: string; type: string; active: boolean }>> {
   const res = await fetch(`${API_BASE}/wifi/saved-profiles`);
   if (!res.ok) throw new Error('Failed to fetch saved Wi-Fi profiles');
+  return res.json();
+}
+
+export async function traceWifiPassword(ssid: string, bssid?: string): Promise<PasswordTraceResult> {
+  const res = await fetch(`${API_BASE}/wifi/trace`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ssid, bssid }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'Failed to trace Wi-Fi password');
+  }
   return res.json();
 }
 

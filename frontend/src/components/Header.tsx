@@ -18,6 +18,10 @@ export const Header: React.FC<HeaderProps> = ({
   isRefreshing,
 }) => {
   const titles: Record<PageId, { title: string; subtitle: string }> = {
+    'wifi-recovery': {
+      title: 'Wi-Fi Password Recovery',
+      subtitle: 'Select any nearby Wi-Fi network and trace saved passwords from local NetworkManager profiles',
+    },
     dashboard: {
       title: 'Network Overview',
       subtitle: 'Real-time telemetry, interface topology & discovered router candidates',

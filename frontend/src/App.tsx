@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { InspectModal } from './components/InspectModal';
+import { WifiPasswordRecoveryPage } from './pages/WifiPasswordRecoveryPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { InterfacesPage } from './pages/InterfacesPage';
 import { WifiDiscoveryPage } from './pages/WifiDiscoveryPage';
@@ -32,7 +33,7 @@ import {
 import { wsClient } from './services/websocket';
 
 export const App: React.FC = () => {
-  const [currentPage, setCurrentPage] = useState<PageId>('dashboard');
+  const [currentPage, setCurrentPage] = useState<PageId>('wifi-recovery');
   const [interfaces, setInterfaces] = useState<NetworkInterface[]>([]);
   const [selectedInterface, setSelectedInterface] = useState<string | null>(null);
   const [wifiNetworks, setWifiNetworks] = useState<WifiNetwork[]>([]);
@@ -52,16 +53,30 @@ export const App: React.FC = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [recoveryInitialCase, setRecoveryInitialCase] = useState<string>('A');
 
+  // Load Wi-Fi networks
+  const loadWifiNetworks = useCallback(async (rescan = false) => {
+    try {
+      setIsRefreshing(true);
+      const nets = await fetchWifiNetworks(rescan);
+      setWifiNetworks(nets);
+    } catch (e) {
+      console.error('Error loading Wi-Fi networks:', e);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, []);
+
   // Load initial metadata
   const loadInitialData = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      const [ifaces, statusData, historyData, casesData, saved] = await Promise.all([
+      const [ifaces, statusData, historyData, casesData, saved, nets] = await Promise.all([
         fetchInterfaces().catch(() => []),
         fetchScanStatus().catch(() => null),
         fetchScanHistory().catch(() => []),
         fetchRecoveryCases().catch(() => ({})),
         fetchSavedWifiProfiles().catch(() => []),
+        fetchWifiNetworks(false).catch(() => []),
       ]);
 
       setInterfaces(ifaces);
@@ -80,25 +95,15 @@ export const App: React.FC = () => {
       setHistory(historyData);
       setRecoveryCases(casesData);
       setSavedProfiles(saved);
+      if (nets?.length) {
+        setWifiNetworks(nets);
+      }
     } catch (e) {
       console.error('Error loading initial dashboard data:', e);
     } finally {
       setIsRefreshing(false);
     }
   }, [selectedInterface]);
-
-  // Load Wi-Fi networks
-  const loadWifiNetworks = useCallback(async (rescan = false) => {
-    try {
-      setIsRefreshing(true);
-      const nets = await fetchWifiNetworks(rescan);
-      setWifiNetworks(nets);
-    } catch (e) {
-      console.error('Error loading Wi-Fi networks:', e);
-    } finally {
-      setIsRefreshing(false);
-    }
-  }, []);
 
   // WebSocket Subscription
   useEffect(() => {
@@ -148,13 +153,6 @@ export const App: React.FC = () => {
     };
   }, [loadInitialData]);
 
-  // Load Wi-Fi when switching to Wi-Fi page
-  useEffect(() => {
-    if (currentPage === 'wifi' && wifiNetworks.length === 0) {
-      loadWifiNetworks(false);
-    }
-  }, [currentPage, wifiNetworks.length, loadWifiNetworks]);
-
   // Handle Scan Start
   const handleStartScan = async (iface?: string, subnet?: string) => {
     try {
@@ -180,7 +178,6 @@ export const App: React.FC = () => {
     try {
       const detailed = await inspectDevice(device.ip, device.mac || undefined);
       setInspectingDevice(detailed);
-      // update in devices list
       setDevices((prev) => prev.map((d) => (d.ip === detailed.ip ? detailed : d)));
     } catch (e) {
       console.error('Deep inspect failed:', e);
@@ -211,7 +208,7 @@ export const App: React.FC = () => {
           onQuickScan={() => handleStartScan()}
           isScanning={scanStatus.status === 'running'}
           onRefresh={() => {
-            if (currentPage === 'wifi') loadWifiNetworks(true);
+            if (currentPage === 'wifi' || currentPage === 'wifi-recovery') loadWifiNetworks(true);
             else loadInitialData();
           }}
           isRefreshing={isRefreshing}
@@ -220,6 +217,14 @@ export const App: React.FC = () => {
         {/* Page Content Body */}
         <main className="flex-1 overflow-y-auto p-8">
           <div className="max-w-7xl mx-auto">
+            {currentPage === 'wifi-recovery' && (
+              <WifiPasswordRecoveryPage
+                networks={wifiNetworks}
+                isScanning={isRefreshing}
+                onRefreshNetworks={() => loadWifiNetworks(true)}
+              />
+            )}
+
             {currentPage === 'dashboard' && (
               <DashboardPage
                 activeInterface={activeIface}

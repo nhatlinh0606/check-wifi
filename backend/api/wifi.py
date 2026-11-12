@@ -8,6 +8,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from backend.services.wifi_service import WifiService
+from backend.services.websocket_service import ws_manager
 
 router = APIRouter(prefix="/api/wifi", tags=["Wi-Fi"])
 wifi_service = WifiService()
@@ -25,6 +26,23 @@ class WifiNetworkResponse(BaseModel):
     is_tplink: bool
 
 
+class TracePasswordRequest(BaseModel):
+    ssid: str
+    bssid: Optional[str] = None
+
+
+class TracePasswordResponse(BaseModel):
+    found: bool
+    ssid: str
+    bssid: Optional[str] = None
+    password: Optional[str] = None
+    profile_name: Optional[str] = None
+    source: Optional[str] = None
+    security_type: Optional[str] = None
+    message: str
+    explanation: Optional[str] = None
+
+
 @router.get("/scan", response_model=List[WifiNetworkResponse])
 def scan_wifi_networks(rescan: bool = False):
     """
@@ -40,3 +58,14 @@ def get_saved_profiles() -> List[Dict[str, Any]]:
     Lists Wi-Fi network connection profiles configured on this host machine.
     """
     return wifi_service.get_saved_profiles()
+
+
+@router.post("/trace", response_model=TracePasswordResponse)
+async def trace_wifi_password(req: TracePasswordRequest):
+    """
+    Checks if credentials for the selected Wi-Fi network exist in local NetworkManager profiles.
+    Never transmits credentials outside this machine.
+    """
+    result = wifi_service.trace_wifi_password(req.ssid, req.bssid)
+    await ws_manager.broadcast("password_trace", result)
+    return result

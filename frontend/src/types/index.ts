@@ -22,6 +22,18 @@ export interface WifiNetwork {
   is_tplink: boolean;
 }
 
+export interface PasswordTraceResult {
+  found: boolean;
+  ssid: string;
+  bssid?: string | null;
+  password?: string | null;
+  profile_name?: string | null;
+  source?: string | null;
+  security_type?: string | null;
+  message: string;
+  explanation?: string | null;
+}
+
 export interface EndpointDetail {
   url: string;
   port: number;
@@ -84,6 +96,7 @@ export interface RecoveryCase {
 }
 
 export type PageId =
+  | 'wifi-recovery'
   | 'dashboard'
   | 'interfaces'
   | 'wifi'

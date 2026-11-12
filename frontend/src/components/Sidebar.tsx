@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  KeyRound,
   LayoutDashboard,
   Network,
   Wifi,
@@ -23,12 +24,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
   activeInterface,
 }) => {
   const navItems = [
+    { id: 'wifi-recovery' as PageId, label: 'Wi-Fi Password Recovery', icon: KeyRound },
     { id: 'dashboard' as PageId, label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'interfaces' as PageId, label: 'Network Interfaces', icon: Network },
-    { id: 'wifi' as PageId, label: 'Wi-Fi Discovery', icon: Wifi },
+    { id: 'wifi' as PageId, label: 'Wi-Fi Scanner', icon: Wifi },
     { id: 'discovery' as PageId, label: 'Router Discovery', icon: Radio },
+    { id: 'interfaces' as PageId, label: 'Network Interfaces', icon: Network },
     { id: 'history' as PageId, label: 'Scan History', icon: History },
-    { id: 'recovery' as PageId, label: 'Recovery Assistant', icon: LifeBuoy },
+    { id: 'recovery' as PageId, label: 'Hardware Recovery Guide', icon: LifeBuoy },
     { id: 'settings' as PageId, label: 'Settings', icon: Settings },
   ];
 

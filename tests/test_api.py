@@ -29,6 +29,16 @@ def test_wifi_scan_endpoint():
     assert isinstance(response.json(), list)
 
 
+def test_trace_wifi_password_endpoint():
+    # Test unsaved network
+    response = client.post("/api/wifi/trace", json={"ssid": "NonExistentWifiTestSSID123", "bssid": "00:11:22:33:44:55"})
+    assert response.status_code == 200
+    data = response.json()
+    assert data["found"] is False
+    assert "Password not found in local saved Wi-Fi profiles" in data["message"]
+    assert "explanation" in data
+
+
 def test_discovery_status():
     response = client.get("/api/discovery/status")
     assert response.status_code == 200
