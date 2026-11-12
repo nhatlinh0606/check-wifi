@@ -3,6 +3,10 @@
 venv/
 ENV/
 
+# Node dependencies
+frontend/node_modules/
+node_modules/
+
 # Byte-compiled / cache files
 __pycache__/
 *.py[cod]

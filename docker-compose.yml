@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  router-dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tplink-router-dashboard
+    restart: unless-stopped
+    # Use host network mode so the container can inspect host interfaces and ARP tables
+    network_mode: host
+    environment:
+      - HOST=127.0.0.1
+      - PORT=8000
+    volumes:
+      - ./reports:/app/reports

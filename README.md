@@ -1,145 +1,180 @@
-# TP-Link Router Discovery & Recovery Toolkit
+# TP-Link Router Discovery & Recovery Toolkit (Web Dashboard & CLI)
 
-Công cụ quản trị và chẩn đoán mạng nội bộ chuyên dụng trên hệ điều hành **Ubuntu Linux**, hỗ trợ tự động dò tìm, nhận diện và cung cấp hướng dẫn khôi phục quyền quản trị router TP-Link thuộc sở hữu của bạn mà không thực hiện các hành vi tấn công phá hoại.
-
----
-
-## 1. Giới thiệu & Triết lý an toàn
-
-Khi quản trị thiết bị mạng gia đình hoặc văn phòng, nhiều tình huống khiến người quản trị mất quyền truy cập (mật khẩu Wi-Fi bị đổi, IP quản trị LAN bị đổi, router lắp ở vị trí khó tiếp cận như cột/tường cao).
-
-**Nguyên tắc an toàn (Security by Design):**
-- **KHÔNG** thực hiện brute-force mật khẩu hoặc tấn công từ điển.
-- **KHÔNG** crack handshake WPA/WPA2/WPA3.
-- **KHÔNG** deauthentication attack, WPS PIN brute-force hoặc exploit lỗ hổng firmware.
-- **KHÔNG** bypass xác thực hoặc tự ý sửa đổi file cấu hình thiết bị.
-- **KHÔNG** gửi bất kỳ dữ liệu nhạy cảm nào ra Internet.
-- **CHỈ** sử dụng giao thức chuẩn (ARP, ICMP ping sweep, TCP connect check, HTTP/HTTPS banner) để xác định sự hiện diện và trạng thái của router trên mạng LAN được phép quản lý.
+A comprehensive local network administration, discovery, and credential recovery dashboard and CLI toolkit for **Ubuntu Linux**.
+Built for network administrators and owners to locate, inspect, and recover access to TP-Link routers on their local area networks safely and non-destructively.
 
 ---
 
-## 2. Cấu trúc thư mục dự án
+## 1. Key Features
+
+- **Local Web Dashboard (FastAPI + React + TypeScript + Tailwind CSS):**
+  - **Overview Dashboard:** Live telemetry, active interface, default gateway, connected host counters, candidate router cards.
+  - **Network Interfaces:** Interface details, MTU, IPv4 address, subnet mask, CIDR, and default route selector.
+  - **Wi-Fi Discovery:** Passive scan of nearby wireless access points (SSID, BSSID, Signal meter, Channel, Security, Band, Vendor OUI) using normal operating system Wi-Fi APIs (`nmcli`).
+  - **Router Discovery:** Asynchronous background LAN sweep, live WebSocket streaming progress (`ws://127.0.0.1:8000/ws/scan`), real-time host cards, and deep inspection modal.
+  - **Credential Recovery Assistant:** Legitimate manufacturer workflows for Cases A through E, including **Indoor PoE Injector Remote Reset procedures for pole-mounted/outdoor devices** and model-specific hardware reset timing.
+  - **Scan History:** Archives discovery sessions into structured JSON reports with an integrated JSON viewer and download options.
+- **Standalone CLI Toolkit:**
+  - `python3 router_tool.py discover`: Full subnet discovery, port scanning & router identification.
+  - `python3 router_tool.py scan`: Quick subnet host discovery.
+  - `python3 router_tool.py identify --ip <IP>`: Deep vendor & confidence analysis.
+  - `python3 router_tool.py inspect --ip <IP>`: Passive HTTP/HTTPS header and signature examination.
+  - `python3 router_tool.py assist --case <A-E>`: Command-line recovery workflows.
+  - `python3 router_tool.py report --format json`: Export reports to JSON or TXT.
+
+---
+
+## 2. Security Boundaries & Ethics
+
+This software strictly adheres to authorized administrative and diagnostic guidelines:
+- **No Password Cracking:** Does **not** perform brute-force, dictionary attacks, or WPS PIN attacks.
+- **No Packet Manipulation:** Does **not** execute deauthentication attacks or WPA/WPA2/WPA3 handshake capturing.
+- **No Exploitation:** Does **not** attempt authentication bypass or firmware exploits.
+- **Localhost Binding:** Web server binds to `127.0.0.1` by default to prevent exposure to untrusted networks.
+- **No Remote Command Injection:** Inputs (IP addresses, interfaces, subnets) are strictly validated.
+- **Zero External Telemetry:** All data remains strictly local on your machine.
+
+---
+
+## 3. Project Architecture
 
 ```
-router-recovery-tool/
-├── router_tool.py                  # Điểm khởi chạy CLI chính
-├── requirements.txt                # Thư viện phụ thuộc Python
-├── README.md                       # Hướng dẫn chi tiết
+check-wifi/
+├── backend/                        # FastAPI Backend
+│   ├── main.py                     # App entry point, CORS, WebSockets, SPA static serving
+│   ├── api/
+│   │   ├── network.py              # Interface & gateway endpoints
+│   │   ├── wifi.py                 # OS Wi-Fi scan & saved profiles
+│   │   ├── discovery.py            # Background scan controls & history
+│   │   ├── devices.py              # Single-host deep inspection
+│   │   └── recovery.py             # Recovery workflows & cases
+│   └── services/
+│       ├── scan_service.py         # Async background scanner & progress manager
+│       ├── wifi_service.py         # nmcli wrapper & Wi-Fi parser
+│       ├── websocket_service.py    # Real-time WebSocket event broadcaster
+│       └── history_service.py      # JSON report archiving
+├── frontend/                       # Modern React Dashboard
+│   ├── src/
+│   │   ├── components/             # Sidebar, Header, DeviceCard, InspectModal, ProgressBar
+│   │   ├── pages/                  # Dashboard, Interfaces, Wifi, Discovery, History, Recovery, Settings
+│   │   ├── services/               # Typed API client & WebSocket client
+│   │   └── types/                  # TypeScript interface definitions
+│   ├── package.json
+│   ├── vite.config.ts
+│   └── tailwind.config.js
+├── modules/                        # Reusable Python Core Modules
+│   ├── network_discovery.py        # Interface detection, routing table, ARP parser
+│   ├── arp_scanner.py              # Multi-threaded ping & ARP sweep
+│   ├── port_scanner.py             # Non-intrusive TCP handshake checker (80, 443, 8080, etc.)
+│   ├── admin_interface.py          # HTTP/HTTPS status, redirects, headers, signatures
+│   ├── router_identifier.py        # MAC OUI & confidence scoring engine
+│   ├── recovery_assistant.py       # Recovery case database & model guides
+│   └── reporter.py                 # Colored terminal & report exporter
 ├── config/
-│   └── vendors.json                # Cơ sở dữ liệu MAC OUI TP-Link & nhà sản xuất
-├── modules/
-│   ├── network_discovery.py        # Phát hiện interface, IP, gateway, subnet, ARP
-│   ├── arp_scanner.py              # Quét subnet tìm live hosts (Scapy & ping sweep)
-│   ├── port_scanner.py             # Kiểm tra cổng dịch vụ TCP (80, 443, 8080, v.v.)
-│   ├── admin_interface.py          # Kiểm tra HTTP/HTTPS, tiêu đề, chữ ký TP-Link
-│   ├── router_identifier.py        # Tính toán điểm tin cậy & nhận diện router
-│   ├── recovery_assistant.py       # Hướng dẫn tương tác theo tình huống A - E
-│   └── reporter.py                 # Xuất báo cáo màu CLI, JSON, TXT
-├── tests/
-│   ├── test_network_discovery.py   # Kiểm thử module network discovery
-│   ├── test_router_identifier.py   # Kiểm thử module nhận diện router
-│   ├── test_admin_interface.py     # Kiểm thử module phân tích giao diện web
-│   └── test_recovery_assistant.py  # Kiểm thử kịch bản khôi phục
-└── reports/                        # Thư mục lưu báo cáo scan JSON / TXT
+│   └── vendors.json                # 176 TP-Link OUIs + other vendors (IEEE MA-L)
+├── tests/                          # 20 Automated Unit & API Tests
+├── reports/                        # Saved JSON telemetry reports
+├── Dockerfile                      # Multi-stage production container
+├── docker-compose.yml              # Host network mode compose spec
+├── router_tool.py                  # Standalone CLI entry point
+├── start_dashboard.sh              # Single-command launcher script
+└── requirements.txt                # Python dependencies
 ```
 
 ---
 
-## 3. Cài đặt trên Ubuntu Linux
+## 4. Ubuntu Installation & Setup
 
-### Bước 1: Yêu cầu môi trường
+### Prerequisites
 - Ubuntu 20.04 / 22.04 / 24.04 LTS
-- Python 3.10 trở lên
-- `iproute2` (đã có sẵn mặc định trên Ubuntu)
+- Python 3.10+
+- Node.js 18+ and npm (for frontend compilation if developing)
+- `iproute2` and `network-manager` (`nmcli`)
 
-### Bước 2: Tạo môi trường ảo và cài đặt thư viện
+### Quick Start (Local Web Dashboard)
+
 ```bash
-cd /home/yang/Desktop/yanglynk/wifi/router-recovery-tool
+# 1. Clone repository
+git clone git@github.com:nhatlinh0606/check-wifi.git
+cd check-wifi
 
-# Tạo virtualenv
+# 2. Setup Python virtual environment
 python3 -m venv .venv
 source .venv/bin/activate
-
-# Cài đặt thư viện
 pip install -r requirements.txt
+
+# 3. Build React frontend (pre-compiled in dist, or build afresh):
+cd frontend && npm install && npm run build && cd ..
+
+# 4. Start Dashboard:
+./start_dashboard.sh
 ```
+
+Now open your web browser and navigate to:
+**👉 `http://127.0.0.1:8000`**
+
+- Interactive Swagger API docs are accessible at: `http://127.0.0.1:8000/docs`
+- Real-time WebSocket stream is at: `ws://127.0.0.1:8000/ws/scan`
 
 ---
 
-## 4. Hướng dẫn sử dụng CLI
+## 5. Running with Docker Compose
 
-### 4.1. Khám phá toàn diện mạng LAN (`discover`)
-Tự động tìm interface chính, quét dải mạng, kiểm tra các cổng quản trị và nhận diện thiết bị TP-Link cùng độ tin cậy (Confidence Level):
+For a containerized setup with host network access (to discover host ARP and network devices):
+
 ```bash
-python3 router_tool.py discover
+docker compose up --build
 ```
-*Tùy chọn:* Chỉ định interface và xuất báo cáo tự động:
-```bash
-python3 router_tool.py discover -i enp3s0 --format json
-```
-
-### 4.2. Quét nhanh các thiết bị trong dải mạng (`scan`)
-Liệt kê các thiết bị đang hoạt động, địa chỉ IP, MAC và Hostname:
-```bash
-# Quét subnet mặc định của interface hiện tại:
-python3 router_tool.py scan
-
-# Quét trên interface hoặc subnet tùy chọn:
-python3 router_tool.py scan --interface wlp0s20f3 --subnet 192.168.1.0/24
-```
-
-### 4.3. Nhận diện sâu một IP nghi ngờ (`identify`)
-Kiểm tra MAC OUI, cổng quản trị, tiêu đề HTTP và đánh giá độ tin cậy TP-Link (High / Medium / Low / None):
-```bash
-python3 router_tool.py identify --ip 192.168.1.1
-```
-
-### 4.4. Phân tích chi tiết giao diện web quản trị (`inspect`)
-Thu thập HTTP status code, chuỗi chuyển hướng (redirect chain), Server header, tiêu đề trang và chữ ký model:
-```bash
-python3 router_tool.py inspect --ip 192.168.1.1
-```
-
-### 4.5. Trợ lý hướng dẫn khôi phục (`assist`)
-Cung cấp giải pháp xử lý theo từng trường hợp cụ thể:
-```bash
-# Chế độ tương tác qua menu:
-python3 router_tool.py assist
-
-# Xem nhanh theo từng trường hợp (A, B, C, D, E):
-python3 router_tool.py assist --case A
-python3 router_tool.py assist --case B
-python3 router_tool.py assist --case C
-python3 router_tool.py assist --case D
-python3 router_tool.py assist --case E
-```
-
-### 4.6. Xuất báo cáo (`report`)
-Xuất kết quả chẩn đoán ra file JSON hoặc văn bản TXT trong thư mục `reports/`:
-```bash
-python3 router_tool.py report --format json
-python3 router_tool.py report --format txt -o reports/my_network_report.txt
-```
+Access the dashboard at `http://127.0.0.1:8000`.
 
 ---
 
-## 5. Các kịch bản khôi phục (Recovery Scenarios)
+## 6. CLI Usage Reference
 
-| Tình huống | Mô tả | Hướng giải quyết chính |
-|---|---|---|
-| **Case A** | Vào được trang quản trị nhưng quên mật khẩu | Thử tài khoản mặc định theo model (`admin/admin` cho dòng cũ); sử dụng nút "Forgot Password?"; đăng nhập qua app di động TP-Link Tether nếu trước đây đã gán TP-Link ID; xem mật khẩu đã lưu trên trình duyệt. |
-| **Case B** | Tìm được IP quản trị nhưng không có thông tin đăng nhập | Thử truy cập qua HTTP (80/8080) và HTTPS (443/8443) ở chế độ ẩn danh (Incognito); dùng tên miền nội bộ `tplinkwifi.net` hoặc `tplinklogin.net`. |
-| **Case C** | Không thấy IP quản trị trong subnet hiện tại | Cắm trực tiếp dây cáp LAN vào router; gia hạn DHCP (`dhclient`); gán IP tĩnh tạm thời (ví dụ `192.168.0.100/24`) để rà soát dải mạng phụ nếu router đang chạy ở chế độ Access Point. |
-| **Case D** | Không kết nối được Wi-Fi | Sử dụng cáp Ethernet cắm vào cổng LAN (không cần mật khẩu Wi-Fi); hoặc trích xuất mật khẩu Wi-Fi đã lưu trên các thiết bị cũ (Android/iOS/Windows/Linux). |
-| **Case E** | Hướng dẫn Factory Reset chi tiết theo từng dòng phần cứng | Hướng dẫn reset nút cứng cho Archer Series (giữ 8-10 giây), dòng TL-WR (giữ 6-8 giây), dòng Mesh Deco (giữ 1 giây). **Đặc biệt với dòng Outdoor trên cột (CPE210/510):** Hướng dẫn dùng nút *Remote Reset* trên cục nguồn PoE Injector trong nhà mà không cần phải trèo lên cột điện! |
+The original command-line interface remains 100% supported:
 
----
-
-## 6. Chạy Unit Tests
-
-Bộ kiểm thử được viết bằng `pytest`, kiểm tra toàn diện các module:
 ```bash
 source .venv/bin/activate
-PYTHONPATH=router-recovery-tool pytest router-recovery-tool/tests/ -v
+
+# 1. Run full discovery & identification:
+python3 router_tool.py discover
+
+# 2. Scan live hosts on specific interface/subnet:
+python3 router_tool.py scan --interface wlp0s20f3 --subnet 192.168.1.0/24
+
+# 3. Deeply identify a specific target IP:
+python3 router_tool.py identify --ip 192.168.1.1
+
+# 4. Inspect web management portal:
+python3 router_tool.py inspect --ip 192.168.1.1
+
+# 5. Access Recovery Assistant guides:
+python3 router_tool.py assist --case E
+
+# 6. Export scan report to JSON:
+python3 router_tool.py report --format json
 ```
-Kết quả kiểm thử: **13/13 tests PASSED**.
+
+---
+
+## 7. Recovery Assistant Summary (Cases A - E)
+
+| Scenario | Description | Key Actions |
+|---|---|---|
+| **Case A** | Reachable Admin Page, Forgot Password | Check model default (`admin/admin` on older models); use web UI "Forgot Password?" verification email; use TP-Link Tether mobile app if previously bound to TP-Link Cloud ID. |
+| **Case B** | Known Admin IP, No Credentials | Check HTTP/HTTPS on alternate ports (8080/8443) via Incognito mode; resolve local DNS `http://tplinkwifi.net`. |
+| **Case C** | Admin IP Not on Current Subnet | Direct Ethernet connection; renew DHCP (`sudo dhclient`); assign static IP in `192.168.0.x` or `192.168.0.254` (for PharOS/CPE outdoor units). |
+| **Case D** | Cannot Connect to Wi-Fi | Connect via wired RJ45 cable to bypass Wi-Fi; inspect locally saved credentials using `nmcli connection show <SSID> -s`. |
+| **Case E** | Hardware Factory Reset | **Pole-Mounted / Outdoor Routers (CPE210/510):** Locate the indoor PoE Injector power supply and press the **Remote Reset** button for 10 seconds (no ladder/climbing required). Archer series: hold reset pin for 8-10s; Deco: hold 1s. |
+
+---
+
+## 8. Automated Testing
+
+Run the comprehensive pytest suite covering both core discovery modules and the FastAPI backend:
+
+```bash
+source .venv/bin/activate
+PYTHONPATH=. pytest tests/ -v
+```
+**Test Result: 20 passed.**
