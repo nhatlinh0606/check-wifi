@@ -98,7 +98,7 @@ def get_all_scenarios_info() -> List[Dict[str, str]]:
         {
             "id": "scenario_4",
             "name": "Scenario 4: Router Reachable but Admin Credentials Unknown",
-            "description": "IP is known, but admin password is changed and no local credentials exist. Next step: Official factory reset. Includes model-specific reset timings, ISP PPPoE backup warning, and pole-mounted PoE Remote Reset pinhole guide."
+            "description": "IP is known, but admin password is changed and no local credentials exist. Next step: Official factory reset. Includes model-specific reset timings, ISP PPPoE backup warning, and rear hardware reset button guide."
         },
         {
             "id": "scenario_5",

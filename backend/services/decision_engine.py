@@ -126,17 +126,7 @@ class RecoveryDecisionEngine:
             "custom subnet ranges, and port forwarding rules. Ensure you have your ISP internet contract details before resetting."
         )
 
-        poe_guide = {
-            "applicable": True,
-            "indoor_unit": "TP-Link Passive PoE Injector (24V / 48V indoor adapter)",
-            "method": (
-                "For outdoor or pole-mounted routers (such as PharOS CPE210/CPE510, EAP Outdoor): "
-                "Do NOT climb the pole. Locate the indoor PoE injector power adapter. "
-                "Locate the 'Remote Reset' pinhole button on the indoor PoE unit. "
-                "Use a paperclip to press and hold the Remote Reset button for 8-10 seconds while powered on to factory reset from ground level."
-            ),
-            "note": "Avoid climbing hazardous poles or outdoor towers."
-        }
+        poe_guide = None
 
         hardware_guide = cls._build_hardware_guide(model_hint, is_tplink_candidate)
         model_reset = {
@@ -355,10 +345,10 @@ class RecoveryDecisionEngine:
                 },
                 {
                     "step": 2,
-                    "title": "Pole-Mounted / Outdoor Router Remote Reset",
-                    "instruction": "If the router is on a pole or tower, locate the indoor PoE injector power supply. Use a paperclip to press the 'Remote Reset' button for 8-10 seconds.",
+                    "title": "Hardware Factory Reset Button",
+                    "instruction": "With the router powered on, use a paperclip to press and hold the physical Reset button on the rear panel for 8-10 seconds.",
                     "command": None,
-                    "caution": "Do not climb hazardous poles.",
+                    "caution": "Restores factory default Wi-Fi password printed on the router label.",
                 },
                 {
                     "step": 3,
@@ -455,11 +445,10 @@ class RecoveryDecisionEngine:
                 "Factory reset will permanently wipe custom configurations, including PPPoE login credentials, "
                 "ISP VLAN IDs, static IP routing, and Wi-Fi security keys. Ensure you possess your ISP account details."
             ),
-            "pole_mounted_outdoor_instructions": (
-                "IMPORTANT FOR POLE-MOUNTED / INACCESSIBLE OUTDOOR ROUTERS (CPE210 / CPE510 / EAP Outdoor):\n"
-                "Do NOT climb the pole! Outdoor TP-Link access points are powered through an indoor PoE Injector adapter. "
-                "Check the indoor power brick: it typically features a dedicated 'Remote Reset' pinhole. "
-                "Press and hold the indoor PoE Remote Reset button for 10 seconds to factory reset the outdoor unit safely from ground level."
+            "physical_reset_instructions": (
+                "ROUTER HARDWARE RESET INSTRUCTIONS:\n"
+                "With the router powered on, press and hold the physical Reset button/pinhole on the rear panel for 8-10 seconds. "
+                "Release when the LED status indicators flash. The router will reboot with factory default settings."
             ),
             "procedures_by_series": [
                 {

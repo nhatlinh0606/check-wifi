@@ -362,7 +362,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
             Stage E: Recovery Plan
           </div>
           <p className="text-xs text-slate-400 mt-1">
-            Decision tree output (Scenarios 1-5), factory reset procedures, ISP VLAN warning, and pole PoE remote reset.
+            Decision tree output (Scenarios 1-5), factory reset procedures, ISP VLAN warning, and rear hardware reset button guide.
           </p>
           <div className="mt-3 text-xs text-amber-400 font-semibold flex items-center gap-1">
             Execute recovery <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />

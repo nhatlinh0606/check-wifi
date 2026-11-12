@@ -1,17 +1,19 @@
 """
 API: Wi-Fi Password Recovery Tool Endpoints
 Dedicated endpoints for scanning nearby networks, target-specific analysis,
-and authorized credential recovery.
+authorized credential recovery, and WPA2 packet capture (PCAP/PCAPNG/CAP) inspection.
 """
 
+import base64
 import logging
 from typing import List, Optional, Dict, Any
-from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
 
 from backend.services.wifi_scanner import wifi_scanner, WifiNetwork
 from backend.services.recovery_engine import recovery_engine
 from backend.services.credential_recovery import credential_recovery
+from backend.services.pcap_analyzer import pcap_analyzer
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +25,8 @@ class TracePasswordRequest(BaseModel):
     bssid: Optional[str] = None
     backup_content: Optional[str] = None
     backup_filename: Optional[str] = None
+    pcap_content_base64: Optional[str] = None
+    pcap_filename: Optional[str] = None
 
 
 @router.get("/networks")
@@ -44,11 +48,20 @@ async def trace_password(req: TracePasswordRequest) -> Dict[str, Any]:
     if not req.ssid or not req.ssid.strip():
         raise HTTPException(status_code=400, detail="Target SSID is required.")
 
+    pcap_bytes = None
+    if req.pcap_content_base64:
+        try:
+            pcap_bytes = base64.b64decode(req.pcap_content_base64)
+        except Exception as e:
+            logger.warning(f"Failed to decode base64 pcap content: {e}")
+
     result = await recovery_engine.run_recovery(
         target_ssid=req.ssid,
         target_bssid=req.bssid,
         backup_content=req.backup_content,
-        backup_filename=req.backup_filename
+        backup_filename=req.backup_filename,
+        pcap_bytes=pcap_bytes,
+        pcap_filename=req.pcap_filename
     )
     return result.to_dict()
 
@@ -101,3 +114,48 @@ async def upload_backup_file(file: UploadFile = File(...)) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Error parsing uploaded backup file: {e}")
         raise HTTPException(status_code=400, detail=f"Failed to read backup file: {e}")
+
+
+@router.post("/upload-pcap")
+async def upload_pcap_file(
+    file: UploadFile = File(...),
+    target_ssid: Optional[str] = Form(None),
+    target_bssid: Optional[str] = Form(None)
+) -> Dict[str, Any]:
+    """
+    Parses an uploaded WPA2 packet capture (.pcap, .pcapng, .cap) using Scapy.
+    Extracts 802.11 beacons, filters 802.1X EAPOL frames, classifies 4-way handshake
+    messages (M1-M4), inspects Nonces & Key MICs, and assesses handshake completeness.
+    """
+    try:
+        content_bytes = await file.read()
+        filename = file.filename or "capture.pcap"
+
+        # Validate file size (max 50 MB)
+        if len(content_bytes) > 50 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="PCAP file exceeds 50 MB limit.")
+
+        analysis = pcap_analyzer.parse_pcap_bytes(
+            data=content_bytes,
+            filename=filename,
+            target_ssid=target_ssid,
+            target_bssid=target_bssid
+        )
+
+        b64_content = base64.b64encode(content_bytes).decode("ascii")
+
+        return {
+            "status": "success",
+            "filename": filename,
+            "bytes_analyzed": len(content_bytes),
+            "total_packets": analysis.get("total_packets", 0),
+            "eapol_packets_count": analysis.get("eapol_packets_count", 0),
+            "has_valid_handshake": analysis.get("has_valid_handshake", False),
+            "pcap_content_base64": b64_content,
+            "analysis": analysis
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error parsing uploaded PCAP file: {e}")
+        raise HTTPException(status_code=400, detail=f"Failed to parse PCAP file: {e}")

@@ -7,7 +7,6 @@ import {
   Copy,
   Check,
   ExternalLink,
-  Zap,
   Terminal,
   Layers,
 } from 'lucide-react';
@@ -193,24 +192,6 @@ export const RecoveryPlanPage: React.FC<RecoveryPlanPageProps> = ({
         </div>
       </div>
 
-      {/* Pole-Mounted / Outdoor Router Recovery Card */}
-      {plan.poe_remote_reset_guide?.applicable && (
-        <div className="p-5 rounded-2xl border border-blue-500/40 bg-gradient-to-br from-blue-950/30 via-slate-900 to-slate-950 shadow-xl space-y-3">
-          <div className="flex items-center gap-2.5 text-sm font-bold text-blue-400 uppercase tracking-wider">
-            <Zap className="w-4 h-4 text-blue-400" />
-            Special Guide: Pole-Mounted Router Recovery (Indoor PoE Remote Reset)
-          </div>
-          <p className="text-xs text-slate-300 leading-relaxed">
-            {plan.poe_remote_reset_guide.method}
-          </p>
-          <div className="p-3 rounded-lg bg-slate-950/80 border border-blue-500/20 text-[11px] text-blue-200 font-mono">
-            Indoor Unit: {plan.poe_remote_reset_guide.indoor_unit}
-          </div>
-          <div className="text-[11px] text-slate-400">
-            Note: {plan.poe_remote_reset_guide.note}
-          </div>
-        </div>
-      )}
 
       {/* Critical ISP VLAN & PPPoE Warning Card */}
       <div className="p-5 rounded-2xl border border-rose-500/40 bg-rose-500/5 space-y-3">

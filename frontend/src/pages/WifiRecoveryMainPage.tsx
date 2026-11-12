@@ -18,12 +18,16 @@ import {
   Clock,
   Loader2,
   Zap,
+  ShieldCheck,
+  Binary,
+  Layers,
 } from 'lucide-react';
 import { WifiNetwork, RecoveryResult, StageItem } from '../types';
 import {
   fetchNearbyNetworks,
   traceTargetPassword,
   uploadRecoveryBackupFile,
+  uploadRecoveryPcapFile,
 } from '../services/api';
 import { wsClient } from '../services/websocket';
 
@@ -47,13 +51,23 @@ export const WifiRecoveryMainPage: React.FC = () => {
   const [backupFilename, setBackupFilename] = useState<string | null>(null);
   const [isUploadingBackup, setIsUploadingBackup] = useState(false);
 
+  // Attached PCAP capture file state
+  const [pcapContentBase64, setPcapContentBase64] = useState<string | null>(null);
+  const [pcapFilename, setPcapFilename] = useState<string | null>(null);
+  const [pcapStats, setPcapStats] = useState<{
+    totalPackets: number;
+    eapolCount: number;
+    hasValidHandshake: boolean;
+  } | null>(null);
+  const [isUploadingPcap, setIsUploadingPcap] = useState(false);
+
   // Recovery Execution state
   const [isTracing, setIsTracing] = useState(false);
   const [stages, setStages] = useState<StageItem[]>(DEFAULT_STAGES);
   const [stageMessage, setStageMessage] = useState<string>('Select a network and click Trace Password.');
   const [recoveryResult, setRecoveryResult] = useState<RecoveryResult | null>(null);
   const [showPassword, setShowPassword] = useState(false);
-  const [isCopied, setIsCopied] = useState(false);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [traceError, setTraceError] = useState<string | null>(null);
 
   // Load networks on mount
@@ -129,6 +143,31 @@ export const WifiRecoveryMainPage: React.FC = () => {
     }
   };
 
+  const handlePcapUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingPcap(true);
+    try {
+      const res = await uploadRecoveryPcapFile(
+        file,
+        selectedNetwork?.ssid,
+        selectedNetwork?.bssid
+      );
+      setPcapContentBase64(res.pcap_content_base64);
+      setPcapFilename(res.filename);
+      setPcapStats({
+        totalPackets: res.total_packets,
+        eapolCount: res.eapol_packets_count,
+        hasValidHandshake: res.has_valid_handshake,
+      });
+    } catch (err: any) {
+      alert(err.message || 'Failed to upload packet capture file');
+    } finally {
+      setIsUploadingPcap(false);
+    }
+  };
+
   const handleTracePassword = async () => {
     if (!selectedNetwork || isTracing) return;
 
@@ -145,6 +184,8 @@ export const WifiRecoveryMainPage: React.FC = () => {
         bssid: selectedNetwork.bssid,
         backup_content: backupContent || undefined,
         backup_filename: backupFilename || undefined,
+        pcap_content_base64: pcapContentBase64 || undefined,
+        pcap_filename: pcapFilename || undefined,
       });
       setRecoveryResult(result);
       if (result.stages) setStages(result.stages);
@@ -155,10 +196,10 @@ export const WifiRecoveryMainPage: React.FC = () => {
     }
   };
 
-  const handleCopyPassword = (pwd: string) => {
-    navigator.clipboard.writeText(pwd);
-    setIsCopied(true);
-    setTimeout(() => setIsCopied(false), 2500);
+  const handleCopyText = (text: string, keyId: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedKey(keyId);
+    setTimeout(() => setCopiedKey(null), 2500);
   };
 
   const filteredNetworks = networks.filter((n) => {
@@ -179,14 +220,14 @@ export const WifiRecoveryMainPage: React.FC = () => {
           <div className="space-y-1">
             <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-400 text-xs font-semibold">
               <KeyRound className="w-3.5 h-3.5" />
-              Primary Purpose: Legitimate Wi-Fi Credential Recovery
+              Primary Purpose: Legitimate Wi-Fi Credential Recovery & WPA2 Protocol Analysis
             </div>
             <h1 className="text-xl font-bold text-white tracking-tight">
               Select Wi-Fi Network & Trace Saved Password
             </h1>
             <p className="text-xs text-slate-300 max-w-2xl leading-relaxed">
               Select a target wireless network to analyze its 802.11 security architecture and recover legitimate credentials
-              from local system profiles or user-supplied configuration archives. No brute-force or authentication bypass.
+              from local system profiles, user configuration backups, or authorized WPA2 packet captures.
             </p>
           </div>
 
@@ -391,6 +432,51 @@ export const WifiRecoveryMainPage: React.FC = () => {
                   )}
                 </div>
 
+                {/* Optional Attached Packet Capture (.pcap, .pcapng, .cap) */}
+                <div className="pt-2 border-t border-slate-800/80">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-slate-400">
+                      Optional: Attach WPA2 Capture (.pcap, .pcapng, .cap)
+                    </span>
+                    <label className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold cursor-pointer transition-colors border border-slate-700">
+                      <Upload className="w-3 h-3 text-cyan-400" />
+                      {pcapFilename ? 'Replace PCAP' : 'Attach PCAP'}
+                      <input
+                        type="file"
+                        onChange={handlePcapUpload}
+                        accept=".pcap,.pcapng,.cap"
+                        disabled={isUploadingPcap || isTracing}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                  {pcapFilename && (
+                    <div className="mt-2 p-2.5 rounded bg-slate-950 border border-cyan-500/30 flex items-center justify-between text-xs text-cyan-300">
+                      <div className="flex items-center gap-2">
+                        <Radio className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                        <div>
+                          <span className="font-semibold">{pcapFilename}</span>
+                          {pcapStats && (
+                            <span className="text-slate-400 text-[11px] ml-2">
+                              ({pcapStats.totalPackets} pkts, {pcapStats.eapolCount} EAPOL frames, {pcapStats.hasValidHandshake ? 'Valid Handshake Found' : 'Incomplete Handshake'})
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setPcapFilename(null);
+                          setPcapContentBase64(null);
+                          setPcapStats(null);
+                        }}
+                        className="text-[10px] text-slate-400 hover:text-rose-400 ml-2"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )}
+                </div>
+
                 {/* Prominent Action Button: TRACE PASSWORD */}
                 <div className="pt-2">
                   <button
@@ -480,12 +566,12 @@ export const WifiRecoveryMainPage: React.FC = () => {
               )}
 
               {/* ============================================================= */}
-              {/* RESULT SCREEN: SUCCESS or NOT RECOVERED */}
+              {/* RESULT SCREEN: SUCCESS, HANDSHAKE_CAPTURED, or NOT RECOVERED  */}
               {/* ============================================================= */}
               {recoveryResult && (
-                <div className="animate-in fade-in duration-300">
-                  {recoveryResult.status === 'SUCCESS' ? (
-                    /* SUCCESS STATE */
+                <div className="animate-in fade-in duration-300 space-y-4">
+                  {/* CASE 1: SUCCESS (Credential genuinely recovered from local source) */}
+                  {recoveryResult.status === 'SUCCESS' && (
                     <div className="bg-slate-900/90 border border-emerald-500/50 rounded-2xl p-6 shadow-2xl space-y-4">
                       <div className="flex items-center justify-between border-b border-emerald-500/30 pb-3">
                         <div className="flex items-center gap-2.5">
@@ -531,11 +617,11 @@ export const WifiRecoveryMainPage: React.FC = () => {
                             </button>
 
                             <button
-                              onClick={() => handleCopyPassword(recoveryResult.recovered_password || '')}
+                              onClick={() => handleCopyText(recoveryResult.recovered_password || '', 'pwd')}
                               className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold text-xs transition-all shadow-md shadow-emerald-600/30 cursor-pointer"
                             >
-                              {isCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                              {isCopied ? 'Copied!' : 'Copy Password'}
+                              {copiedKey === 'pwd' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                              {copiedKey === 'pwd' ? 'Copied!' : 'Copy Password'}
                             </button>
                           </div>
                         </div>
@@ -546,8 +632,190 @@ export const WifiRecoveryMainPage: React.FC = () => {
                         <span>SSID: {recoveryResult.target_ssid} • BSSID: {recoveryResult.target_bssid || 'Matched'}</span>
                       </div>
                     </div>
-                  ) : (
-                    /* NOT RECOVERED STATE */
+                  )}
+
+                  {/* CASE 2: HANDSHAKE CAPTURED (Cryptographic evidence available, plaintext password NOT sent over air) */}
+                  {recoveryResult.status === 'HANDSHAKE_CAPTURED' && recoveryResult.handshake_evidence && (
+                    <div className="bg-slate-900/95 border border-cyan-500/50 rounded-2xl p-6 shadow-2xl space-y-5">
+                      <div className="flex items-center justify-between border-b border-cyan-500/30 pb-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-full bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-400">
+                            <ShieldCheck className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <div className="text-xs uppercase font-bold text-cyan-400 tracking-wider">
+                              WPA2 Handshake Cryptographic Evidence Captured
+                            </div>
+                            <div className="text-sm font-bold text-white">
+                              {recoveryResult.target_ssid} ({recoveryResult.handshake_evidence.completeness})
+                            </div>
+                          </div>
+                        </div>
+
+                        <span className="px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 text-xs font-mono font-semibold border border-cyan-500/30">
+                          {recoveryResult.handshake_evidence.completeness}
+                        </span>
+                      </div>
+
+                      {/* Cryptographic Explanation Banner */}
+                      <div className="p-3.5 rounded-xl bg-slate-950/80 border border-cyan-500/30 text-xs text-slate-300 space-y-1.5">
+                        <div className="font-bold text-cyan-300 flex items-center gap-1.5">
+                          <Info className="w-3.5 h-3.5 text-cyan-400" />
+                          Handshake Evidence Captured ≠ Plaintext Password Recovered
+                        </div>
+                        <p className="text-slate-400 leading-relaxed text-[11px]">
+                          Under standard <strong>IEEE 802.11i</strong>, the pre-shared key (PSK) is <em>never transmitted over the air</em>.
+                          The 4-way handshake verifies key knowledge through nonces and a Message Integrity Code (MIC).
+                          The captured exchange mathematically proves client/AP authentication, but passive inspection cannot expose the plaintext passphrase without offline candidate key validation.
+                        </p>
+                      </div>
+
+                      {/* Nonces & MIC Cryptographic Inspection Table */}
+                      <div className="space-y-3">
+                        <div className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                          <Binary className="w-3.5 h-3.5 text-cyan-400" />
+                          Extracted Cryptographic Parameters
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                          {/* AP & STA MAC */}
+                          <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
+                            <span className="text-[10px] text-slate-500 uppercase font-semibold">Authenticator (AP) MAC</span>
+                            <div className="font-mono text-slate-200 font-bold">{recoveryResult.handshake_evidence.ap_mac}</div>
+                          </div>
+                          <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
+                            <span className="text-[10px] text-slate-500 uppercase font-semibold">Supplicant (Client) MAC</span>
+                            <div className="font-mono text-slate-200 font-bold">{recoveryResult.handshake_evidence.sta_mac}</div>
+                          </div>
+
+                          {/* ANonce */}
+                          <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] text-slate-500 uppercase font-semibold">AP Nonce (ANonce)</span>
+                              {recoveryResult.handshake_evidence.anonce_hex && (
+                                <button
+                                  onClick={() => handleCopyText(recoveryResult.handshake_evidence?.anonce_hex || '', 'anonce')}
+                                  className="text-[10px] text-cyan-400 hover:text-cyan-300 cursor-pointer"
+                                >
+                                  {copiedKey === 'anonce' ? 'Copied' : 'Copy'}
+                                </button>
+                              )}
+                            </div>
+                            <div className="font-mono text-[11px] text-cyan-200 break-all bg-slate-900/60 p-1.5 rounded">
+                              {recoveryResult.handshake_evidence.anonce_hex || 'Not captured in this trace'}
+                            </div>
+                          </div>
+
+                          {/* SNonce */}
+                          <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] text-slate-500 uppercase font-semibold">STA Nonce (SNonce)</span>
+                              {recoveryResult.handshake_evidence.snonce_hex && (
+                                <button
+                                  onClick={() => handleCopyText(recoveryResult.handshake_evidence?.snonce_hex || '', 'snonce')}
+                                  className="text-[10px] text-cyan-400 hover:text-cyan-300 cursor-pointer"
+                                >
+                                  {copiedKey === 'snonce' ? 'Copied' : 'Copy'}
+                                </button>
+                              )}
+                            </div>
+                            <div className="font-mono text-[11px] text-cyan-200 break-all bg-slate-900/60 p-1.5 rounded">
+                              {recoveryResult.handshake_evidence.snonce_hex || 'Not captured in this trace'}
+                            </div>
+                          </div>
+
+                          {/* Key MIC */}
+                          <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] text-slate-500 uppercase font-semibold">Key MIC (Message Integrity Code)</span>
+                              {recoveryResult.handshake_evidence.key_mic_hex && (
+                                <button
+                                  onClick={() => handleCopyText(recoveryResult.handshake_evidence?.key_mic_hex || '', 'mic')}
+                                  className="text-[10px] text-cyan-400 hover:text-cyan-300 cursor-pointer"
+                                >
+                                  {copiedKey === 'mic' ? 'Copied' : 'Copy'}
+                                </button>
+                              )}
+                            </div>
+                            <div className="font-mono text-[11px] text-emerald-300 break-all bg-slate-900/60 p-1.5 rounded">
+                              {recoveryResult.handshake_evidence.key_mic_hex || 'Not captured in this trace'}
+                            </div>
+                          </div>
+
+                          {/* MIC Algorithm & Replay Counter */}
+                          <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
+                            <span className="text-[10px] text-slate-500 uppercase font-semibold">MIC Algorithm & Replay Counter</span>
+                            <div className="font-mono text-[11px] text-slate-200">
+                              {recoveryResult.handshake_evidence.mic_algorithm} • Counter: {recoveryResult.handshake_evidence.key_replay_counter ?? 'N/A'}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* EAPOL Packets Breakdown Table */}
+                      {recoveryResult.pcap_analysis?.eapol_frames && recoveryResult.pcap_analysis.eapol_frames.length > 0 && (
+                        <div className="space-y-2">
+                          <div className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                            <Layers className="w-3.5 h-3.5 text-cyan-400" />
+                            EAPOL Handshake Frames Dissected ({recoveryResult.pcap_analysis.eapol_frames.length})
+                          </div>
+                          <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950">
+                            <table className="w-full text-left text-xs font-mono">
+                              <thead className="bg-slate-900/80 text-[10px] uppercase text-slate-400 border-b border-slate-800">
+                                <tr>
+                                  <th className="py-2 px-3">Frame</th>
+                                  <th className="py-2 px-3">Type</th>
+                                  <th className="py-2 px-3">Direction</th>
+                                  <th className="py-2 px-3">Replay #</th>
+                                  <th className="py-2 px-3">Key MIC</th>
+                                  <th className="py-2 px-3">Flags</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-800/60 text-[11px]">
+                                {recoveryResult.pcap_analysis.eapol_frames.map((pkt, i) => (
+                                  <tr key={i} className="hover:bg-slate-900/40">
+                                    <td className="py-2 px-3 text-slate-400">#{pkt.frame_index}</td>
+                                    <td className="py-2 px-3 font-bold text-cyan-300">{pkt.message_type}</td>
+                                    <td className="py-2 px-3 text-slate-300">
+                                      {pkt.src_mac.slice(0, 8)}... → {pkt.dst_mac.slice(0, 8)}...
+                                    </td>
+                                    <td className="py-2 px-3 text-slate-400">{pkt.key_replay_counter}</td>
+                                    <td className="py-2 px-3 font-mono text-[10px] text-emerald-400 truncate max-w-[120px]">
+                                      {pkt.key_mic_hex ? pkt.key_mic_hex.slice(0, 16) + '...' : 'None'}
+                                    </td>
+                                    <td className="py-2 px-3 text-[10px] text-slate-400">
+                                      {pkt.is_ack ? 'ACK ' : ''}
+                                      {pkt.has_mic ? 'MIC ' : ''}
+                                      {pkt.is_install ? 'INSTALL ' : ''}
+                                      {pkt.is_secure ? 'SECURE' : ''}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Next Legitimate Options */}
+                      <div className="space-y-2 pt-2 border-t border-cyan-500/20">
+                        <div className="text-xs font-bold text-cyan-300 uppercase tracking-wider">
+                          Next Legitimate Recovery Options:
+                        </div>
+                        <ul className="space-y-1.5 text-xs text-slate-300">
+                          {recoveryResult.next_legitimate_options.map((opt, i) => (
+                            <li key={i} className="flex items-start gap-2">
+                              <span className="text-cyan-400 font-bold">•</span>
+                              <span>{opt}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* CASE 3: NOT RECOVERED (No credentials found, or incomplete handshake) */}
+                  {recoveryResult.status === 'NOT_RECOVERED' && (
                     <div className="bg-slate-900/90 border border-rose-500/40 rounded-2xl p-6 shadow-2xl space-y-5">
                       <div className="flex items-center justify-between border-b border-rose-500/20 pb-3">
                         <div className="flex items-center gap-2.5">
@@ -589,13 +857,19 @@ export const WifiRecoveryMainPage: React.FC = () => {
                           {recoveryResult.checks_performed.map((chk, i) => (
                             <div key={i} className="p-3 flex items-start justify-between gap-3">
                               <div>
-                                <span className="font-semibold text-slate-200">{chk.source}:</span>
-                                <p className="text-[11px] text-slate-400 mt-0.5">{chk.details}</p>
+                                <span className="font-semibold text-slate-200">
+                                  {chk.source_name || chk.source}:
+                                </span>
+                                <p className="text-[11px] text-slate-400 mt-0.5">
+                                  {chk.description || chk.details}
+                                </p>
                               </div>
                               <span
                                 className={`px-2 py-0.5 rounded text-[10px] font-mono font-semibold shrink-0 ${
-                                  chk.status === 'Found'
+                                  chk.status === 'Found' || chk.status === 'FOUND'
                                     ? 'bg-emerald-500/20 text-emerald-300'
+                                    : chk.status === 'PARTIAL'
+                                    ? 'bg-amber-500/20 text-amber-300'
                                     : 'bg-slate-800 text-slate-400'
                                 }`}
                               >

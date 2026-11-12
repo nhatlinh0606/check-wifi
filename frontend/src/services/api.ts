@@ -36,6 +36,8 @@ export async function traceTargetPassword(params: {
   bssid?: string;
   backup_content?: string;
   backup_filename?: string;
+  pcap_content_base64?: string;
+  pcap_filename?: string;
 }): Promise<RecoveryResult> {
   const res = await fetch(`${API_BASE}/recovery-tool/trace`, {
     method: 'POST',
@@ -65,6 +67,35 @@ export async function uploadRecoveryBackupFile(file: File): Promise<{
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || 'Failed to parse backup file');
+  }
+  return res.json();
+}
+
+export async function uploadRecoveryPcapFile(
+  file: File,
+  targetSsid?: string,
+  targetBssid?: string
+): Promise<{
+  status: string;
+  filename: string;
+  bytes_analyzed: number;
+  total_packets: number;
+  eapol_packets_count: number;
+  has_valid_handshake: boolean;
+  pcap_content_base64: string;
+  analysis: any;
+}> {
+  const formData = new FormData();
+  formData.append('file', file);
+  if (targetSsid) formData.append('target_ssid', targetSsid);
+  if (targetBssid) formData.append('target_bssid', targetBssid);
+  const res = await fetch(`${API_BASE}/recovery-tool/upload-pcap`, {
+    method: 'POST',
+    body: formData,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'Failed to parse packet capture file');
   }
   return res.json();
 }

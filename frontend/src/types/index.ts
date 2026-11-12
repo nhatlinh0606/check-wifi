@@ -38,10 +38,64 @@ export interface StageItem {
   details?: any;
 }
 
+export interface EapolPacketInfo {
+  frame_index: number;
+  timestamp: number;
+  src_mac: string;
+  dst_mac: string;
+  bssid?: string | null;
+  message_type: string;
+  message_description: string;
+  key_descriptor_type: number;
+  key_descriptor_version: number;
+  key_replay_counter: number;
+  key_nonce_hex: string;
+  key_mic_hex: string;
+  key_data_length: number;
+  key_data_preview: string;
+  is_pairwise: boolean;
+  is_ack: boolean;
+  has_mic: boolean;
+  is_install: boolean;
+  is_secure: boolean;
+}
+
+export interface HandshakeEvidence {
+  conversation_id: string;
+  ap_mac: string;
+  sta_mac: string;
+  associated_ssid?: string | null;
+  messages_found: string[];
+  completeness: 'COMPLETE_4WAY' | 'VALID_HANDSHAKE_PAIR' | 'INCOMPLETE_HANDSHAKE' | 'NO_HANDSHAKE';
+  is_usable_for_offline_validation: boolean;
+  anonce_hex?: string | null;
+  snonce_hex?: string | null;
+  key_mic_hex?: string | null;
+  mic_algorithm: string;
+  key_replay_counter?: number | null;
+  cryptographic_summary: string;
+  packet_indices: number[];
+}
+
+export interface PcapAnalysisResult {
+  status: string;
+  filename: string;
+  error?: string;
+  total_packets: number;
+  eapol_packets_count: number;
+  beacons_discovered: Array<{ bssid: string; ssid: string }>;
+  eapol_frames: EapolPacketInfo[];
+  handshake_conversations: HandshakeEvidence[];
+  best_handshake?: HandshakeEvidence | null;
+  has_valid_handshake: boolean;
+}
+
 export interface RecoveryResult {
-  status: 'SUCCESS' | 'NOT_RECOVERED';
+  status: 'SUCCESS' | 'HANDSHAKE_CAPTURED' | 'NOT_RECOVERED';
   outcome_code:
     | 'PASSWORD_RECOVERED'
+    | 'HANDSHAKE_EVIDENCE_AVAILABLE'
+    | 'HANDSHAKE_EVIDENCE_INCOMPLETE'
     | 'EVIDENCE_INSUFFICIENT'
     | 'NO_CREDENTIAL_AVAILABLE'
     | 'ADDITIONAL_INPUT_REQUIRED'
@@ -67,14 +121,21 @@ export interface RecoveryResult {
     interface_telemetry?: any;
   };
   checks_performed: Array<{
-    source: string;
+    source_id?: string;
+    source_name?: string;
+    source?: string;
     status: string;
-    details: string;
+    details?: string;
+    description?: string;
+    evidence_found?: boolean;
+    target_matched?: boolean;
   }>;
   failure_reason?: string | null;
   missing_evidence?: string | null;
   next_legitimate_options: string[];
   technical_limitation_notice: string;
+  handshake_evidence?: HandshakeEvidence | null;
+  pcap_analysis?: PcapAnalysisResult | null;
 }
 
 export interface EndpointDetail {

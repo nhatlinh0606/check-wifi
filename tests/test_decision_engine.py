@@ -129,8 +129,8 @@ def test_scenario_5_no_usable_recovery_source():
     assert len(plan.unknowns) > 0
 
 
-def test_poe_remote_reset_and_isp_warning():
-    """Verifies outdoor pole-mounted PoE reset button documentation and ISP warning."""
+def test_hardware_reset_and_isp_warning():
+    """Verifies router hardware reset button documentation, absence of pole assumptions, and ISP warning."""
     plan = RecoveryDecisionEngine.evaluate(
         has_network_connection=False,
         connection_type="none",
@@ -138,15 +138,15 @@ def test_poe_remote_reset_and_isp_warning():
         gateway_mac=None,
         detected_vendor="TP-Link",
         is_tplink_candidate=True,
-        model_hint="CPE210",
+        model_hint="Archer AX50",
         management_endpoints=[],
         credential_sources=[],
         nearby_ssids=["HANH_KIEU"],
         active_interface_name="eth0",
     )
 
-    assert plan.poe_remote_reset_guide is not None
-    assert plan.poe_remote_reset_guide["applicable"] is True
-    assert "Remote Reset" in plan.poe_remote_reset_guide["method"]
-    assert "PoE" in plan.poe_remote_reset_guide["indoor_unit"]
+    # Verifies pole/PoE reset assumptions are removed
+    assert plan.poe_remote_reset_guide is None
+    assert plan.model_specific_reset is not None
+    assert plan.hardware_reset_guide is not None
     assert "VLAN" in plan.isp_pppoe_warning

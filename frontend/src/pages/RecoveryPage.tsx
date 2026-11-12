@@ -122,16 +122,7 @@ export const RecoveryPage: React.FC<RecoveryPageProps> = ({ cases, initialCase =
                       <td className="py-2.5 px-4">Configured via Deco Mobile App</td>
                       <td className="py-2.5 px-4">TP-Link Cloud ID</td>
                     </tr>
-                    <tr className="bg-amber-950/20">
-                      <td className="py-2.5 px-4 font-semibold text-amber-300">
-                        Outdoor CPE / Pole-Mounted (CPE210/510)
-                      </td>
-                      <td className="py-2.5 px-4 text-amber-300 font-bold">
-                        10s on indoor PoE Injector pinhole!
-                      </td>
-                      <td className="py-2.5 px-4 font-mono text-amber-300">192.168.0.254</td>
-                      <td className="py-2.5 px-4 font-mono text-amber-300">admin / admin</td>
-                    </tr>
+
                   </tbody>
                 </table>
               </div>
