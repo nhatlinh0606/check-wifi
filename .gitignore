@@ -1,0 +1,19 @@
+# Python virtual environment
+.venv/
+venv/
+ENV/
+
+# Byte-compiled / cache files
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Discovery reports (generated dynamically)
+reports/*.json
+reports/*.txt
+!reports/.gitkeep
+
+# Local user notes
+note.md
+.DS_Store
