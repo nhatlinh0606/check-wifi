@@ -3,6 +3,7 @@ import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { InspectModal } from './components/InspectModal';
 import { WifiPasswordRecoveryPage } from './pages/WifiPasswordRecoveryPage';
+import { SecurityAuditorPage } from './pages/SecurityAuditorPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { InterfacesPage } from './pages/InterfacesPage';
 import { WifiDiscoveryPage } from './pages/WifiDiscoveryPage';
@@ -224,6 +225,8 @@ export const App: React.FC = () => {
                 onRefreshNetworks={() => loadWifiNetworks(true)}
               />
             )}
+
+            {currentPage === 'auditor' && <SecurityAuditorPage />}
 
             {currentPage === 'dashboard' && (
               <DashboardPage

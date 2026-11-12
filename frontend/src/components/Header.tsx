@@ -22,6 +22,10 @@ export const Header: React.FC<HeaderProps> = ({
       title: 'Wi-Fi Password Recovery',
       subtitle: 'Select any nearby Wi-Fi network and trace saved passwords from local NetworkManager profiles',
     },
+    auditor: {
+      title: 'Password Security Auditor',
+      subtitle: 'Audit password entropy, generate strong WPA2/WPA3 keys, analyze wordlists, and simulate search spaces',
+    },
     dashboard: {
       title: 'Network Overview',
       subtitle: 'Real-time telemetry, interface topology & discovered router candidates',

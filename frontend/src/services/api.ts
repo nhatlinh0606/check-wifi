@@ -6,6 +6,9 @@ import {
   ScanHistoryItem,
   RecoveryCase,
   PasswordTraceResult,
+  PasswordEvaluation,
+  WordlistAnalysisResult,
+  SearchSpaceSimulation,
 } from '../types';
 
 const API_BASE = '/api';
@@ -103,5 +106,72 @@ export async function inspectDevice(ip: string, mac?: string): Promise<Discovere
 export async function fetchRecoveryCases(): Promise<Record<string, RecoveryCase>> {
   const res = await fetch(`${API_BASE}/recovery/cases`);
   if (!res.ok) throw new Error('Failed to fetch recovery cases');
+  return res.json();
+}
+
+// Security Auditor APIs
+export async function analyzePassword(password: string): Promise<PasswordEvaluation> {
+  const res = await fetch(`${API_BASE}/auditor/analyze-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password }),
+  });
+  if (!res.ok) throw new Error('Failed to analyze password');
+  return res.json();
+}
+
+export async function generatePassword(params: {
+  length: number;
+  include_upper: boolean;
+  include_lower: boolean;
+  include_digits: boolean;
+  include_symbols: boolean;
+  exclude_ambiguous: boolean;
+}): Promise<{ password: string; analysis: PasswordEvaluation }> {
+  const res = await fetch(`${API_BASE}/auditor/generate-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+  if (!res.ok) throw new Error('Failed to generate password');
+  return res.json();
+}
+
+export async function analyzeWordlistText(text: string): Promise<WordlistAnalysisResult> {
+  const res = await fetch(`${API_BASE}/auditor/analyze-wordlist-text`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+  });
+  if (!res.ok) throw new Error('Failed to analyze wordlist');
+  return res.json();
+}
+
+export async function analyzeWordlistFile(file: File): Promise<WordlistAnalysisResult> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await fetch(`${API_BASE}/auditor/analyze-wordlist`, {
+    method: 'POST',
+    body: formData,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'Failed to upload and analyze wordlist');
+  }
+  return res.json();
+}
+
+export async function simulateSearchSpace(params: {
+  charset_type: string;
+  length: number;
+  custom_pool_size?: number;
+  attempts_per_sec: number;
+}): Promise<SearchSpaceSimulation> {
+  const res = await fetch(`${API_BASE}/auditor/simulate-search-space`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+  if (!res.ok) throw new Error('Failed to simulate search space');
   return res.json();
 }

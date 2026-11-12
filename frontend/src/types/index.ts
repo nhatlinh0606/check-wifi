@@ -34,6 +34,55 @@ export interface PasswordTraceResult {
   explanation?: string | null;
 }
 
+export interface PasswordEvaluation {
+  password_masked: string;
+  length: number;
+  entropy_bits: number;
+  strength: 'Very Weak' | 'Weak' | 'Fair' | 'Strong' | 'Very Strong';
+  color: string;
+  character_sets: {
+    lowercase: boolean;
+    uppercase: boolean;
+    digits: boolean;
+    symbols: boolean;
+  };
+  warnings: string[];
+  recommendations: string[];
+  theoretical_combinations: string;
+  crack_time_estimates: {
+    online_router_5_per_sec: string;
+    offline_cpu_10k_per_sec: string;
+    offline_gpu_1m_per_sec: string;
+  };
+}
+
+export interface WordlistAnalysisResult {
+  total_entries: number;
+  unique_entries: number;
+  duplicate_count: number;
+  duplicate_rate_pct: number;
+  avg_length: number;
+  min_length: number;
+  max_length: number;
+  pure_numeric_count: number;
+  pure_numeric_pct: number;
+  sequential_count: number;
+  sample_weak_entries: Array<{ entry: string; reason: string }>;
+  quality_grade: string;
+}
+
+export interface SearchSpaceSimulation {
+  charset_label: string;
+  pool_size: number;
+  length: number;
+  attempts_per_sec: number;
+  total_combinations_scientific: string;
+  total_combinations_exact: string;
+  time_to_exhaust_worst_case: string;
+  time_to_exhaust_average_50pct: string;
+  sample_patterns: string[];
+}
+
 export interface EndpointDetail {
   url: string;
   port: number;
@@ -97,6 +146,7 @@ export interface RecoveryCase {
 
 export type PageId =
   | 'wifi-recovery'
+  | 'auditor'
   | 'dashboard'
   | 'interfaces'
   | 'wifi'

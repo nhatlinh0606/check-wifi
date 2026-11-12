@@ -16,6 +16,7 @@ from backend.api.wifi import router as wifi_router
 from backend.api.discovery import router as discovery_router
 from backend.api.devices import router as devices_router
 from backend.api.recovery import router as recovery_router
+from backend.api.auditor import router as auditor_router
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("backend")
@@ -46,6 +47,7 @@ app.include_router(wifi_router)
 app.include_router(discovery_router)
 app.include_router(devices_router)
 app.include_router(recovery_router)
+app.include_router(auditor_router)
 
 
 @app.get("/api/health")

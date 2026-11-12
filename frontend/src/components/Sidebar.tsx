@@ -25,6 +25,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const navItems = [
     { id: 'wifi-recovery' as PageId, label: 'Wi-Fi Password Recovery', icon: KeyRound },
+    { id: 'auditor' as PageId, label: 'Security Auditor', icon: ShieldCheck },
     { id: 'dashboard' as PageId, label: 'Dashboard', icon: LayoutDashboard },
     { id: 'wifi' as PageId, label: 'Wi-Fi Scanner', icon: Wifi },
     { id: 'discovery' as PageId, label: 'Router Discovery', icon: Radio },
