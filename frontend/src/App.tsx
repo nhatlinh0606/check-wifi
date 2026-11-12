@@ -1,83 +1,69 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
-import { InspectModal } from './components/InspectModal';
-import { WifiPasswordRecoveryPage } from './pages/WifiPasswordRecoveryPage';
-import { SecurityAuditorPage } from './pages/SecurityAuditorPage';
 import { DashboardPage } from './pages/DashboardPage';
-import { InterfacesPage } from './pages/InterfacesPage';
-import { WifiDiscoveryPage } from './pages/WifiDiscoveryPage';
-import { RouterDiscoveryPage } from './pages/RouterDiscoveryPage';
+import { NetworkDiscoveryPage } from './pages/NetworkDiscoveryPage';
+import { RouterIdentificationPage } from './pages/RouterIdentificationPage';
+import { CredentialRecoveryPage } from './pages/CredentialRecoveryPage';
+import { RecoveryPlanPage } from './pages/RecoveryPlanPage';
 import { HistoryPage } from './pages/HistoryPage';
-import { RecoveryPage } from './pages/RecoveryPage';
+import { SecurityAuditorPage } from './pages/SecurityAuditorPage';
 import { SettingsPage } from './pages/SettingsPage';
 import {
   PageId,
   NetworkInterface,
-  WifiNetwork,
-  DiscoveredDevice,
-  ScanStatus,
+  DiagnosisStatus,
+  FullDiagnosisResult,
   ScanHistoryItem,
-  RecoveryCase,
 } from './types';
 import {
   fetchInterfaces,
+  fetchDiagnosisStatus,
+  fetchLatestDiagnosis,
+  fetchDiagnosisHistory,
+  startDiagnosis,
+  stopDiagnosis,
   fetchWifiNetworks,
-  fetchSavedWifiProfiles,
-  fetchScanStatus,
-  fetchScanHistory,
-  fetchRecoveryCases,
-  startDiscoveryScan,
-  stopDiscoveryScan,
-  inspectDevice,
 } from './services/api';
 import { wsClient } from './services/websocket';
 
+const INITIAL_STAGES = [
+  { id: 1, name: 'Detecting network interfaces & hardware controllers', status: 'pending' as const },
+  { id: 2, name: 'Scanning wireless environment & radio signals', status: 'pending' as const },
+  { id: 3, name: 'Analyzing Linux routing table, DNS & gateway', status: 'pending' as const },
+  { id: 4, name: 'Discovering gateway devices & local hosts', status: 'pending' as const },
+  { id: 5, name: 'Identifying router vendor & confidence rating', status: 'pending' as const },
+  { id: 6, name: 'Checking router management web interfaces', status: 'pending' as const },
+  { id: 7, name: 'Auditing local credential stores & backup files', status: 'pending' as const },
+  { id: 8, name: 'Generating evidence-based recovery plan', status: 'pending' as const },
+];
+
 export const App: React.FC = () => {
-  const [currentPage, setCurrentPage] = useState<PageId>('wifi-recovery');
+  const [currentPage, setCurrentPage] = useState<PageId>('dashboard');
   const [interfaces, setInterfaces] = useState<NetworkInterface[]>([]);
   const [selectedInterface, setSelectedInterface] = useState<string | null>(null);
-  const [wifiNetworks, setWifiNetworks] = useState<WifiNetwork[]>([]);
-  const [savedProfiles, setSavedProfiles] = useState<Array<{ name: string; uuid: string; type: string; active: boolean }>>([]);
-  const [devices, setDevices] = useState<DiscoveredDevice[]>([]);
-  const [scanStatus, setScanStatus] = useState<ScanStatus>({
+
+  const [diagnosisStatus, setDiagnosisStatus] = useState<DiagnosisStatus>({
     status: 'idle',
-    progress: 0,
-    current_step: 'Ready',
-    discovered_devices: [],
-    devices_count: 0,
-    tplink_count: 0,
+    current_stage: 0,
+    stage_message: 'Ready to start autonomous diagnosis',
+    stages: INITIAL_STAGES,
+    has_result: false,
   });
+
+  const [latestDiagnosis, setLatestDiagnosis] = useState<FullDiagnosisResult | null>(null);
   const [history, setHistory] = useState<ScanHistoryItem[]>([]);
-  const [recoveryCases, setRecoveryCases] = useState<Record<string, RecoveryCase>>({});
-  const [inspectingDevice, setInspectingDevice] = useState<DiscoveredDevice | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [recoveryInitialCase, setRecoveryInitialCase] = useState<string>('A');
 
-  // Load Wi-Fi networks
-  const loadWifiNetworks = useCallback(async (rescan = false) => {
-    try {
-      setIsRefreshing(true);
-      const nets = await fetchWifiNetworks(rescan);
-      setWifiNetworks(nets);
-    } catch (e) {
-      console.error('Error loading Wi-Fi networks:', e);
-    } finally {
-      setIsRefreshing(false);
-    }
-  }, []);
-
-  // Load initial metadata
+  // Load telemetry and saved reports
   const loadInitialData = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      const [ifaces, statusData, historyData, casesData, saved, nets] = await Promise.all([
+      const [ifaces, statusData, latestResult, historyData] = await Promise.all([
         fetchInterfaces().catch(() => []),
-        fetchScanStatus().catch(() => null),
-        fetchScanHistory().catch(() => []),
-        fetchRecoveryCases().catch(() => ({})),
-        fetchSavedWifiProfiles().catch(() => []),
-        fetchWifiNetworks(false).catch(() => []),
+        fetchDiagnosisStatus().catch(() => null),
+        fetchLatestDiagnosis().catch(() => null),
+        fetchDiagnosisHistory().catch(() => []),
       ]);
 
       setInterfaces(ifaces);
@@ -87,64 +73,64 @@ export const App: React.FC = () => {
       }
 
       if (statusData) {
-        setScanStatus(statusData);
-        if (statusData.discovered_devices?.length > 0) {
-          setDevices(statusData.discovered_devices);
-        }
+        setDiagnosisStatus(statusData);
       }
-
+      if (latestResult) {
+        setLatestDiagnosis(latestResult);
+      }
       setHistory(historyData);
-      setRecoveryCases(casesData);
-      setSavedProfiles(saved);
-      if (nets?.length) {
-        setWifiNetworks(nets);
-      }
     } catch (e) {
-      console.error('Error loading initial dashboard data:', e);
+      console.error('Error loading initial diagnosis data:', e);
     } finally {
       setIsRefreshing(false);
     }
   }, [selectedInterface]);
 
-  // WebSocket Subscription
+  // WebSocket Subscription for Real-time Stage Progress
   useEffect(() => {
     loadInitialData();
     wsClient.connect();
 
     const unsubscribe = wsClient.subscribe((event, data) => {
-      if (event === 'scan_start' || event === 'scan_progress' || event === 'scan_complete' || event === 'scan_error') {
-        setScanStatus((prev) => ({
+      if (event === 'diagnosis_start') {
+        setDiagnosisStatus((prev) => ({
           ...prev,
-          status: data.status || prev.status,
-          progress: data.progress ?? prev.progress,
-          current_step: data.current_step || prev.current_step,
-          discovered_devices: data.discovered_devices || prev.discovered_devices,
-          devices_count: data.devices_count ?? prev.devices_count,
-          tplink_count: data.tplink_count ?? prev.tplink_count,
+          status: 'running',
+          current_stage: 0,
+          stage_message: 'Starting diagnosis...',
+          stages: INITIAL_STAGES,
         }));
-
-        if (data.discovered_devices?.length) {
-          setDevices(data.discovered_devices);
+      } else if (event === 'diagnosis_progress') {
+        setDiagnosisStatus((prev) => ({
+          ...prev,
+          current_stage: data.current_stage ?? prev.current_stage,
+          stage_message: data.stage_message || prev.stage_message,
+          stages: data.stages || prev.stages,
+          status: data.status || prev.status,
+        }));
+      } else if (event === 'diagnosis_complete') {
+        setDiagnosisStatus((prev) => ({
+          ...prev,
+          status: 'completed',
+          stage_message: data.stage_message || 'Diagnosis complete',
+        }));
+        if (data.result) {
+          setLatestDiagnosis(data.result);
         }
-
-        if (event === 'scan_complete') {
-          fetchScanHistory().then(setHistory).catch(console.error);
-        }
-      } else if (event === 'device_found') {
-        const found = data.device as DiscoveredDevice;
-        if (found) {
-          setDevices((prev) => {
-            const exists = prev.some((d) => d.ip === found.ip);
-            return exists ? prev.map((d) => (d.ip === found.ip ? found : d)) : [...prev, found];
-          });
-        }
-        if (data.progress !== undefined) {
-          setScanStatus((prev) => ({
-            ...prev,
-            progress: data.progress,
-            current_step: data.current_step,
-          }));
-        }
+        fetchDiagnosisHistory().then(setHistory).catch(console.error);
+      } else if (event === 'diagnosis_cancelled') {
+        setDiagnosisStatus((prev) => ({
+          ...prev,
+          status: 'cancelled',
+          stage_message: 'Diagnosis cancelled.',
+        }));
+      } else if (event === 'diagnosis_error') {
+        setDiagnosisStatus((prev) => ({
+          ...prev,
+          status: 'failed',
+          stage_message: data.stage_message || 'Diagnosis failed',
+          error_message: data.error_message,
+        }));
       }
     });
 
@@ -154,47 +140,55 @@ export const App: React.FC = () => {
     };
   }, [loadInitialData]);
 
-  // Handle Scan Start
-  const handleStartScan = async (iface?: string, subnet?: string) => {
+  // Handle Starting Autonomous Diagnosis
+  const handleStartDiagnosis = async () => {
     try {
-      setDevices([]);
-      await startDiscoveryScan(iface || selectedInterface || undefined, subnet);
+      await startDiagnosis({
+        target_interface: selectedInterface || undefined,
+      });
+      setCurrentPage('dashboard');
     } catch (err: any) {
-      alert(err.message || 'Failed to start scan');
+      alert(err.message || 'Failed to start diagnosis');
     }
   };
 
-  // Handle Scan Cancel
-  const handleCancelScan = async () => {
+  // Handle Stopping Diagnosis
+  const handleStopDiagnosis = async () => {
     try {
-      await stopDiscoveryScan();
+      await stopDiagnosis();
     } catch (err: any) {
       console.error(err);
     }
   };
 
-  // Handle Inspect Device
-  const handleInspectDevice = async (device: DiscoveredDevice) => {
-    setInspectingDevice(device);
+  // Handle Refreshing Wireless Airwaves
+  const handleRefreshWifi = async () => {
+    setIsRefreshing(true);
     try {
-      const detailed = await inspectDevice(device.ip, device.mac || undefined);
-      setInspectingDevice(detailed);
-      setDevices((prev) => prev.map((d) => (d.ip === detailed.ip ? detailed : d)));
-    } catch (e) {
-      console.error('Deep inspect failed:', e);
+      const networks = await fetchWifiNetworks(true);
+      if (latestDiagnosis) {
+        setLatestDiagnosis({
+          ...latestDiagnosis,
+          wireless: {
+            ...latestDiagnosis.wireless,
+            networks,
+            networks_count: networks.length,
+            tplink_aps_detected: networks.filter((n) => n.is_tplink),
+          },
+        });
+      }
+    } catch (err) {
+      console.error('Failed to rescan wifi:', err);
+    } finally {
+      setIsRefreshing(false);
     }
-  };
-
-  const handleNavigateToRecovery = (caseId: string) => {
-    setRecoveryInitialCase(caseId);
-    setCurrentPage('recovery');
   };
 
   const activeIface = interfaces.find((i) => i.name === selectedInterface) || interfaces[0] || null;
 
   return (
     <div className="flex h-screen bg-slate-950 text-slate-100 overflow-hidden font-sans">
-      {/* Sidebar */}
+      {/* Sidebar Navigation */}
       <Sidebar
         currentPage={currentPage}
         onSelectPage={setCurrentPage}
@@ -206,70 +200,44 @@ export const App: React.FC = () => {
         {/* Header */}
         <Header
           currentPage={currentPage}
-          onQuickScan={() => handleStartScan()}
-          isScanning={scanStatus.status === 'running'}
-          onRefresh={() => {
-            if (currentPage === 'wifi' || currentPage === 'wifi-recovery') loadWifiNetworks(true);
-            else loadInitialData();
-          }}
+          onQuickDiagnosis={handleStartDiagnosis}
+          onStopDiagnosis={handleStopDiagnosis}
+          isDiagnosing={diagnosisStatus.status === 'running'}
+          onRefresh={loadInitialData}
           isRefreshing={isRefreshing}
         />
 
         {/* Page Content Body */}
         <main className="flex-1 overflow-y-auto p-8">
           <div className="max-w-7xl mx-auto">
-            {currentPage === 'wifi-recovery' && (
-              <WifiPasswordRecoveryPage
-                networks={wifiNetworks}
-                isScanning={isRefreshing}
-                onRefreshNetworks={() => loadWifiNetworks(true)}
-              />
-            )}
-
-            {currentPage === 'auditor' && <SecurityAuditorPage />}
-
             {currentPage === 'dashboard' && (
               <DashboardPage
-                activeInterface={activeIface}
-                scanStatus={scanStatus}
-                devices={devices}
-                onStartScan={handleStartScan}
-                onCancelScan={handleCancelScan}
-                onNavigate={setCurrentPage}
-                onInspectDevice={handleInspectDevice}
+                diagnosisStatus={diagnosisStatus}
+                latestDiagnosis={latestDiagnosis}
+                onStartDiagnosis={handleStartDiagnosis}
+                onStopDiagnosis={handleStopDiagnosis}
+                onSelectPage={setCurrentPage}
               />
             )}
 
-            {currentPage === 'interfaces' && (
-              <InterfacesPage
-                interfaces={interfaces}
-                selectedInterface={selectedInterface}
-                onSelectInterface={setSelectedInterface}
-                onNavigate={setCurrentPage}
-              />
-            )}
-
-            {currentPage === 'wifi' && (
-              <WifiDiscoveryPage
-                networks={wifiNetworks}
-                savedProfiles={savedProfiles}
+            {currentPage === 'network-discovery' && (
+              <NetworkDiscoveryPage
+                latestDiagnosis={latestDiagnosis}
+                onRefreshWifi={handleRefreshWifi}
                 isRefreshing={isRefreshing}
-                onRefresh={loadWifiNetworks}
-                onNavigate={setCurrentPage}
               />
             )}
 
-            {currentPage === 'discovery' && (
-              <RouterDiscoveryPage
-                interfaces={interfaces}
-                selectedInterface={selectedInterface}
-                onSelectInterface={setSelectedInterface}
-                scanStatus={scanStatus}
-                devices={devices}
-                onStartScan={handleStartScan}
-                onCancelScan={handleCancelScan}
-                onInspectDevice={handleInspectDevice}
-              />
+            {currentPage === 'router-identification' && (
+              <RouterIdentificationPage latestDiagnosis={latestDiagnosis} />
+            )}
+
+            {currentPage === 'credential-recovery' && (
+              <CredentialRecoveryPage latestDiagnosis={latestDiagnosis} />
+            )}
+
+            {currentPage === 'recovery-plan' && (
+              <RecoveryPlanPage latestDiagnosis={latestDiagnosis} />
             )}
 
             {currentPage === 'history' && (
@@ -279,24 +247,12 @@ export const App: React.FC = () => {
               />
             )}
 
-            {currentPage === 'recovery' && (
-              <RecoveryPage
-                cases={recoveryCases}
-                initialCase={recoveryInitialCase}
-              />
-            )}
+            {currentPage === 'auditor' && <SecurityAuditorPage />}
 
             {currentPage === 'settings' && <SettingsPage />}
           </div>
         </main>
       </div>
-
-      {/* Device Inspect Modal */}
-      <InspectModal
-        device={inspectingDevice}
-        onClose={() => setInspectingDevice(null)}
-        onNavigateToRecovery={handleNavigateToRecovery}
-      />
     </div>
   );
 };

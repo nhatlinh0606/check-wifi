@@ -1,14 +1,13 @@
 import React from 'react';
 import {
-  KeyRound,
   LayoutDashboard,
-  Network,
   Wifi,
   Radio,
+  FileKey,
+  Compass,
   History,
-  LifeBuoy,
-  Settings,
   ShieldCheck,
+  Settings,
 } from 'lucide-react';
 import { PageId, NetworkInterface } from '../types';
 
@@ -24,14 +23,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
   activeInterface,
 }) => {
   const navItems = [
-    { id: 'wifi-recovery' as PageId, label: 'Wi-Fi Password Recovery', icon: KeyRound },
-    { id: 'auditor' as PageId, label: 'Security Auditor', icon: ShieldCheck },
     { id: 'dashboard' as PageId, label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'wifi' as PageId, label: 'Wi-Fi Scanner', icon: Wifi },
-    { id: 'discovery' as PageId, label: 'Router Discovery', icon: Radio },
-    { id: 'interfaces' as PageId, label: 'Network Interfaces', icon: Network },
+    { id: 'network-discovery' as PageId, label: 'Network Discovery', icon: Wifi },
+    { id: 'router-identification' as PageId, label: 'Router Identification', icon: Radio },
+    { id: 'credential-recovery' as PageId, label: 'Credential Recovery', icon: FileKey },
+    { id: 'recovery-plan' as PageId, label: 'Recovery Plan', icon: Compass },
     { id: 'history' as PageId, label: 'Scan History', icon: History },
-    { id: 'recovery' as PageId, label: 'Hardware Recovery Guide', icon: LifeBuoy },
+    { id: 'auditor' as PageId, label: 'Security Auditor', icon: ShieldCheck },
     { id: 'settings' as PageId, label: 'Settings', icon: Settings },
   ];
 
@@ -41,16 +39,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Brand Header */}
         <div className="h-16 flex items-center px-6 gap-3 border-b border-slate-800">
           <div className="w-9 h-9 rounded-lg bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-blue-400">
-            <Radio className="w-5 h-5 animate-pulse" />
+            <Compass className="w-5 h-5 text-blue-400 animate-pulse" />
           </div>
           <div>
             <div className="font-bold text-sm tracking-wide text-white flex items-center gap-2">
-              TP-Link Toolkit
+              TP-Link Assistant
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 font-mono">
                 v2.0
               </span>
             </div>
-            <div className="text-xs text-slate-400">Router Recovery UI</div>
+            <div className="text-xs text-slate-400">Recovery & Discovery</div>
           </div>
         </div>
 
@@ -63,7 +61,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <button
                 key={item.id}
                 onClick={() => onSelectPage(item.id)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all cursor-pointer ${
                   isActive
                     ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/25'
                     : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/60'
@@ -101,10 +99,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
           </div>
         ) : (
-          <div className="text-xs text-amber-400 flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
-            Detecting network...
-          </div>
+          <div className="text-[11px] text-slate-500">Detecting interfaces...</div>
         )}
       </div>
     </aside>

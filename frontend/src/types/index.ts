@@ -10,6 +10,12 @@ export interface NetworkInterface {
   gateway?: string | null;
 }
 
+export interface HardwareController {
+  interface: string;
+  driver: string;
+  chipset_pci_id: string;
+}
+
 export interface WifiNetwork {
   ssid: string;
   bssid: string;
@@ -22,18 +28,187 @@ export interface WifiNetwork {
   is_tplink: boolean;
 }
 
-export interface PasswordTraceResult {
-  found: boolean;
-  ssid: string;
-  bssid?: string | null;
-  password?: string | null;
-  profile_name?: string | null;
-  source?: string | null;
-  security_type?: string | null;
-  message: string;
-  explanation?: string | null;
+export interface EndpointDetail {
+  url: string;
+  port: number;
+  protocol: string;
+  status_code: number;
+  title?: string | null;
+  server_header?: string | null;
+  redirect_chain: string[];
+  final_url?: string | null;
+  auth_realm?: string | null;
+  tplink_signatures_found: string[];
+  model_hint?: string | null;
 }
 
+export interface DiscoveredDevice {
+  ip: string;
+  mac?: string | null;
+  is_gateway: boolean;
+  detected_vendor: string;
+  is_tplink_candidate: boolean;
+  confidence: 'High' | 'Medium' | 'Low' | 'None';
+  confidence_score: number;
+  evidence: string[];
+  model_hint?: string | null;
+  admin_url?: string | null;
+  open_ports: number[];
+  details?: {
+    endpoints?: EndpointDetail[];
+    port_results?: Array<{ port: number; service: string; is_open: boolean; latency_ms?: number }>;
+  };
+}
+
+export interface CredentialSourceAudit {
+  source_name: string;
+  source_type: string;
+  status: 'Checked' | 'Found' | 'Not found' | 'Permission required' | 'Unsupported';
+  description: string;
+  credentials: Array<{
+    ssid?: string;
+    bssid?: string;
+    identity?: string;
+    secret?: string;
+    location: string;
+    encryption_type?: string;
+  }>;
+  technical_limitation_note?: string | null;
+  matching_credential_found: boolean;
+}
+
+export interface RecoveryPlan {
+  scenario_id: 'scenario_1' | 'scenario_2' | 'scenario_3' | 'scenario_4' | 'scenario_5';
+  scenario_title: string;
+  scenario_summary: string;
+  confidence_rating: 'High' | 'Medium' | 'Low';
+  confirmed_facts: string[];
+  working_hypotheses: string[];
+  unknown_variables: string[];
+  action_steps: Array<{
+    step: number;
+    title: string;
+    instruction: string;
+    command?: string;
+    caution?: string;
+  }>;
+  technical_notes: string[];
+  model_specific_reset?: {
+    model: string;
+    hold_duration_sec: number;
+    led_indicator: string;
+    default_ip: string;
+    default_web_url: string;
+    default_credentials: string;
+  } | null;
+  poe_remote_reset_guide?: {
+    applicable: boolean;
+    indoor_unit: string;
+    method: string;
+    note: string;
+  } | null;
+  isp_pppoe_warning: string;
+  official_vendor_docs: Array<{
+    title: string;
+    url: string;
+  }>;
+}
+
+export interface StageProgress {
+  id: number;
+  name: string;
+  status: 'pending' | 'active' | 'completed' | 'failed';
+  details?: any;
+}
+
+export interface DiagnosisStatus {
+  status: 'idle' | 'running' | 'completed' | 'failed' | 'cancelled';
+  current_stage: number;
+  stage_message: string;
+  stages: StageProgress[];
+  has_result: boolean;
+  error_message?: string | null;
+}
+
+export interface FullDiagnosisResult {
+  timestamp: string;
+  environment: {
+    interfaces: NetworkInterface[];
+    primary_interface?: NetworkInterface | null;
+    hardware_controllers: HardwareController[];
+  };
+  wireless: {
+    networks_count: number;
+    networks: WifiNetwork[];
+    tplink_aps_detected: WifiNetwork[];
+  };
+  routing: {
+    default_gateway?: string | null;
+    gateway_interface?: string | null;
+    connection_type: 'wifi' | 'ethernet' | 'none';
+    target_subnet: string;
+    dns_servers: string[];
+  };
+  hosts: {
+    hosts_count: number;
+    hosts: Array<{ ip: string; mac?: string; is_gateway: boolean }>;
+  };
+  router_identification: {
+    gateway_device?: any;
+    detected_vendor: string;
+    is_tplink_candidate: boolean;
+    candidate_devices: DiscoveredDevice[];
+  };
+  management: {
+    gateway_ip?: string | null;
+    open_ports: number[];
+    management_endpoints: EndpointDetail[];
+    is_management_reachable: boolean;
+    model_hint?: string | null;
+  };
+  credentials: {
+    sources_checked_count: number;
+    sources: CredentialSourceAudit[];
+    matching_credential_found: boolean;
+  };
+  recovery_plan: RecoveryPlan;
+}
+
+export interface ScanStatus {
+  status: 'idle' | 'running' | 'completed' | 'failed' | 'cancelled';
+  progress: number;
+  current_step: string;
+  interface_info?: NetworkInterface | null;
+  discovered_devices: DiscoveredDevice[];
+  devices_count: number;
+  tplink_count: number;
+  last_report_file?: string | null;
+  error_message?: string | null;
+}
+
+export interface ScanHistoryItem {
+  id?: string;
+  filename: string;
+  timestamp: string;
+  interface?: string | null;
+  subnet?: string | null;
+  gateway?: string | null;
+  results_count?: number;
+  tplink_count?: number;
+  file_size?: number;
+  scenario_id?: string;
+  scenario_title?: string;
+  confidence_rating?: string;
+  gateway_ip?: string;
+}
+
+export interface RecoveryCase {
+  title: string;
+  summary: string;
+  steps: string[];
+}
+
+// Security Auditor Types
 export interface PasswordEvaluation {
   password_masked: string;
   length: number;
@@ -83,74 +258,29 @@ export interface SearchSpaceSimulation {
   sample_patterns: string[];
 }
 
-export interface EndpointDetail {
-  url: string;
-  port: number;
-  protocol: string;
-  status_code: number;
-  title?: string | null;
-  server_header?: string | null;
-  redirect_chain: string[];
-  final_url?: string | null;
-  auth_realm?: string | null;
-  tplink_signatures_found: string[];
-  model_hint?: string | null;
-}
-
-export interface DiscoveredDevice {
-  ip: string;
-  mac?: string | null;
-  is_gateway: boolean;
-  detected_vendor: string;
-  is_tplink_candidate: boolean;
-  confidence: 'High' | 'Medium' | 'Low' | 'None';
-  confidence_score: number;
-  evidence: string[];
-  model_hint?: string | null;
-  admin_url?: string | null;
-  open_ports: number[];
-  details?: {
-    endpoints?: EndpointDetail[];
-    port_results?: Array<{ port: number; service: string; is_open: boolean; latency_ms?: number }>;
-  };
-}
-
-export interface ScanStatus {
-  status: 'idle' | 'running' | 'completed' | 'failed' | 'cancelled';
-  progress: number;
-  current_step: string;
-  interface_info?: NetworkInterface | null;
-  discovered_devices: DiscoveredDevice[];
-  devices_count: number;
-  tplink_count: number;
-  last_report_file?: string | null;
-  error_message?: string | null;
-}
-
-export interface ScanHistoryItem {
-  id: string;
-  filename: string;
-  timestamp: string;
-  interface?: string | null;
-  subnet?: string | null;
-  gateway?: string | null;
-  results_count: number;
-  tplink_count: number;
-}
-
-export interface RecoveryCase {
-  title: string;
-  summary: string;
-  steps: string[];
+export interface PasswordTraceResult {
+  found: boolean;
+  ssid: string;
+  bssid?: string | null;
+  password?: string | null;
+  profile_name?: string | null;
+  source?: string | null;
+  security_type?: string | null;
+  message: string;
+  explanation?: string | null;
 }
 
 export type PageId =
-  | 'wifi-recovery'
-  | 'auditor'
   | 'dashboard'
+  | 'network-discovery'
+  | 'router-identification'
+  | 'credential-recovery'
+  | 'recovery-plan'
+  | 'history'
+  | 'auditor'
+  | 'settings'
+  | 'discovery'
   | 'interfaces'
   | 'wifi'
-  | 'discovery'
-  | 'history'
   | 'recovery'
-  | 'settings';
+  | 'wifi-recovery';

@@ -5,13 +5,106 @@ import {
   ScanStatus,
   ScanHistoryItem,
   RecoveryCase,
-  PasswordTraceResult,
   PasswordEvaluation,
   WordlistAnalysisResult,
   SearchSpaceSimulation,
+  DiagnosisStatus,
+  FullDiagnosisResult,
+  RecoveryPlan,
 } from '../types';
 
 const API_BASE = '/api';
+
+// ============================================================================
+// Autonomous Diagnosis Pipeline APIs (Primary Workflow)
+// ============================================================================
+
+export async function startDiagnosis(params?: {
+  target_interface?: string;
+  custom_subnet?: string;
+  imported_backup_content?: string;
+  imported_backup_filename?: string;
+}): Promise<{ status: string; message: string; progress: DiagnosisStatus }> {
+  const res = await fetch(`${API_BASE}/diagnosis/start`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params || {}),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'Failed to start diagnosis');
+  }
+  return res.json();
+}
+
+export async function stopDiagnosis(): Promise<{ status: string; message: string }> {
+  const res = await fetch(`${API_BASE}/diagnosis/stop`, { method: 'POST' });
+  if (!res.ok) throw new Error('Failed to stop diagnosis');
+  return res.json();
+}
+
+export async function fetchDiagnosisStatus(): Promise<DiagnosisStatus> {
+  const res = await fetch(`${API_BASE}/diagnosis/status`);
+  if (!res.ok) throw new Error('Failed to fetch diagnosis status');
+  return res.json();
+}
+
+export async function fetchLatestDiagnosis(): Promise<FullDiagnosisResult> {
+  const res = await fetch(`${API_BASE}/diagnosis/latest`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'No recent diagnosis available');
+  }
+  return res.json();
+}
+
+export async function fetchDiagnosisHistory(): Promise<ScanHistoryItem[]> {
+  const res = await fetch(`${API_BASE}/diagnosis/history`);
+  if (!res.ok) throw new Error('Failed to fetch diagnosis history');
+  return res.json();
+}
+
+export async function fetchHistoricalReport(filename: string): Promise<FullDiagnosisResult> {
+  const res = await fetch(`${API_BASE}/diagnosis/history/${encodeURIComponent(filename)}`);
+  if (!res.ok) throw new Error('Failed to fetch historical report');
+  return res.json();
+}
+
+export async function importBackupFile(file: File): Promise<{
+  status: string;
+  filename: string;
+  bytes_analyzed: number;
+  sources: any[];
+  credentials_found: any[];
+}> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await fetch(`${API_BASE}/diagnosis/import-backup`, {
+    method: 'POST',
+    body: formData,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'Failed to analyze backup file');
+  }
+  return res.json();
+}
+
+export async function fetchLatestRecoveryPlan(): Promise<RecoveryPlan> {
+  const res = await fetch(`${API_BASE}/recovery-plan/latest`);
+  if (!res.ok) throw new Error('Failed to fetch recovery plan');
+  return res.json();
+}
+
+export async function fetchRecoveryScenarios(): Promise<Array<{ id: string; name: string; description: string }>> {
+  const res = await fetch(`${API_BASE}/recovery-plan/scenarios`);
+  if (!res.ok) throw new Error('Failed to fetch recovery scenarios');
+  return res.json();
+}
+
+// ============================================================================
+// Network & Wireless Telemetry
+// ============================================================================
 
 export async function fetchInterfaces(): Promise<NetworkInterface[]> {
   const res = await fetch(`${API_BASE}/network/interfaces`);
@@ -40,18 +133,32 @@ export async function fetchSavedWifiProfiles(): Promise<Array<{ name: string; uu
   return res.json();
 }
 
-export async function traceWifiPassword(ssid: string, bssid?: string): Promise<PasswordTraceResult> {
-  const res = await fetch(`${API_BASE}/wifi/trace`, {
+// ============================================================================
+// Router & Host Inspection
+// ============================================================================
+
+export async function inspectDevice(ip: string, mac?: string): Promise<DiscoveredDevice> {
+  const res = await fetch(`${API_BASE}/devices/inspect`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ssid, bssid }),
+    body: JSON.stringify({ ip, mac }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || 'Failed to trace Wi-Fi password');
+    throw new Error(err.detail || 'Failed to inspect device');
   }
   return res.json();
 }
+
+export async function fetchRecoveryCases(): Promise<Record<string, RecoveryCase>> {
+  const res = await fetch(`${API_BASE}/recovery/cases`);
+  if (!res.ok) throw new Error('Failed to fetch recovery cases');
+  return res.json();
+}
+
+// ============================================================================
+// Legacy Discovery Scan (Kept for compatibility)
+// ============================================================================
 
 export async function startDiscoveryScan(iface?: string, subnet?: string): Promise<{ message: string; status: string }> {
   const res = await fetch(`${API_BASE}/discovery/start`, {
@@ -90,26 +197,23 @@ export async function fetchScanReport(reportId: string): Promise<any> {
   return res.json();
 }
 
-export async function inspectDevice(ip: string, mac?: string): Promise<DiscoveredDevice> {
-  const res = await fetch(`${API_BASE}/devices/inspect`, {
+export async function traceWifiPassword(ssid: string, bssid?: string): Promise<any> {
+  const res = await fetch(`${API_BASE}/wifi/trace`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ip, mac }),
+    body: JSON.stringify({ ssid, bssid }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || 'Failed to inspect device');
+    throw new Error(err.detail || 'Failed to trace Wi-Fi password');
   }
   return res.json();
 }
 
-export async function fetchRecoveryCases(): Promise<Record<string, RecoveryCase>> {
-  const res = await fetch(`${API_BASE}/recovery/cases`);
-  if (!res.ok) throw new Error('Failed to fetch recovery cases');
-  return res.json();
-}
-
+// ============================================================================
 // Security Auditor APIs
+// ============================================================================
+
 export async function analyzePassword(password: string): Promise<PasswordEvaluation> {
   const res = await fetch(`${API_BASE}/auditor/analyze-password`, {
     method: 'POST',

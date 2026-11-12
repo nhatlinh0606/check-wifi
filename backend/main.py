@@ -17,6 +17,8 @@ from backend.api.discovery import router as discovery_router
 from backend.api.devices import router as devices_router
 from backend.api.recovery import router as recovery_router
 from backend.api.auditor import router as auditor_router
+from backend.api.diagnosis import router as diagnosis_router
+from backend.api.recovery_plan import router as recovery_plan_router
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("backend")
@@ -42,6 +44,8 @@ app.add_middleware(
 )
 
 # Include API Routers
+app.include_router(diagnosis_router)
+app.include_router(recovery_plan_router)
 app.include_router(network_router)
 app.include_router(wifi_router)
 app.include_router(discovery_router)
