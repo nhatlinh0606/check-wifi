@@ -1,11 +1,7 @@
 import React from 'react';
 import {
-  LayoutDashboard,
-  Wifi,
-  Radio,
+  KeyRound,
   FileKey,
-  Compass,
-  History,
   ShieldCheck,
   Settings,
 } from 'lucide-react';
@@ -23,14 +19,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   activeInterface,
 }) => {
   const navItems = [
-    { id: 'dashboard' as PageId, label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'network-discovery' as PageId, label: 'Network Discovery', icon: Wifi },
-    { id: 'router-identification' as PageId, label: 'Router Identification', icon: Radio },
-    { id: 'credential-recovery' as PageId, label: 'Credential Recovery', icon: FileKey },
-    { id: 'recovery-plan' as PageId, label: 'Recovery Plan', icon: Compass },
-    { id: 'history' as PageId, label: 'Scan History', icon: History },
-    { id: 'auditor' as PageId, label: 'Security Auditor', icon: ShieldCheck },
-    { id: 'settings' as PageId, label: 'Settings', icon: Settings },
+    { id: 'wifi-recovery' as PageId, label: 'Wi-Fi Password Recovery', icon: KeyRound },
+    { id: 'credential-recovery' as PageId, label: 'Offline Backup Analyzer', icon: FileKey },
+    { id: 'auditor' as PageId, label: 'Password Security Auditor', icon: ShieldCheck },
+    { id: 'settings' as PageId, label: 'Settings & Policy', icon: Settings },
   ];
 
   return (
@@ -39,16 +31,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Brand Header */}
         <div className="h-16 flex items-center px-6 gap-3 border-b border-slate-800">
           <div className="w-9 h-9 rounded-lg bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-blue-400">
-            <Compass className="w-5 h-5 text-blue-400 animate-pulse" />
+            <KeyRound className="w-5 h-5 text-blue-400 animate-pulse" />
           </div>
           <div>
             <div className="font-bold text-sm tracking-wide text-white flex items-center gap-2">
-              TP-Link Assistant
+              Wi-Fi Recovery
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 font-mono">
-                v2.0
+                v3.0
               </span>
             </div>
-            <div className="text-xs text-slate-400">Recovery & Discovery</div>
+            <div className="text-xs text-slate-400">Password Recovery Tool</div>
           </div>
         </div>
 
@@ -79,27 +71,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div className="p-4 border-t border-slate-800 m-3 rounded-xl bg-slate-900/60 border">
         <div className="flex items-center gap-2 text-xs font-semibold text-slate-300 mb-1.5">
           <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-          Authorized Diagnostic
+          Authorized Recovery Mode
         </div>
         {activeInterface ? (
           <div className="space-y-1 text-[11px] text-slate-400">
             <div className="flex justify-between">
-              <span>Interface:</span>
+              <span>Wireless Iface:</span>
               <span className="font-mono text-slate-200">{activeInterface.name}</span>
             </div>
             <div className="flex justify-between">
               <span>Local IP:</span>
-              <span className="font-mono text-slate-200">{activeInterface.ip}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Gateway:</span>
-              <span className="font-mono text-emerald-400">
-                {activeInterface.gateway || 'N/A'}
-              </span>
+              <span className="font-mono text-slate-200">{activeInterface.ip || 'DHCP'}</span>
             </div>
           </div>
         ) : (
-          <div className="text-[11px] text-slate-500">Detecting interfaces...</div>
+          <div className="text-[11px] text-slate-500">Wireless active (nl80211)</div>
         )}
       </div>
     </aside>

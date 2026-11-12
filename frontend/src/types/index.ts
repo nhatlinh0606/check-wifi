@@ -20,12 +20,61 @@ export interface WifiNetwork {
   ssid: string;
   bssid: string;
   channel: number;
+  frequency?: string;
+  band: string;
   signal: number;
   bars: string;
   security: string;
-  band: string;
+  encryption?: string;
   vendor: string;
+  is_connected?: boolean;
   is_tplink: boolean;
+}
+
+export interface StageItem {
+  id: number;
+  name: string;
+  status: 'pending' | 'active' | 'completed' | 'failed';
+  details?: any;
+}
+
+export interface RecoveryResult {
+  status: 'SUCCESS' | 'NOT_RECOVERED';
+  outcome_code:
+    | 'PASSWORD_RECOVERED'
+    | 'EVIDENCE_INSUFFICIENT'
+    | 'NO_CREDENTIAL_AVAILABLE'
+    | 'ADDITIONAL_INPUT_REQUIRED'
+    | 'RECOVERY_INFEASIBLE';
+  target_ssid: string;
+  target_bssid?: string | null;
+  recovered_password?: string | null;
+  recovery_source?: string | null;
+  timestamp: string;
+  stages: StageItem[];
+  security_analysis: {
+    target_ssid: string;
+    target_bssid?: string | null;
+    protocol_name: string;
+    akm_suite: string;
+    pairwise_cipher: string;
+    pmk_derivation: string;
+    frequency_band: string;
+    channel: number;
+    security_level: string;
+    passive_airwave_extraction_possible: boolean;
+    technical_limitation_explanation: string;
+    interface_telemetry?: any;
+  };
+  checks_performed: Array<{
+    source: string;
+    status: string;
+    details: string;
+  }>;
+  failure_reason?: string | null;
+  missing_evidence?: string | null;
+  next_legitimate_options: string[];
+  technical_limitation_notice: string;
 }
 
 export interface EndpointDetail {

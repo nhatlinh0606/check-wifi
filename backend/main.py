@@ -19,14 +19,15 @@ from backend.api.recovery import router as recovery_router
 from backend.api.auditor import router as auditor_router
 from backend.api.diagnosis import router as diagnosis_router
 from backend.api.recovery_plan import router as recovery_plan_router
+from backend.api.recovery_tool import router as recovery_tool_router
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("backend")
 
 app = FastAPI(
-    title="TP-Link Router Discovery & Recovery Dashboard",
-    description="Local web dashboard for LAN network discovery, diagnostics, and recovery guidance.",
-    version="2.0.0"
+    title="Wi-Fi Password Recovery Assistant",
+    description="Dedicated Wi-Fi network analysis and authorized legitimate credential recovery.",
+    version="3.0.0"
 )
 
 # CORS Configuration - Local development & dashboard access
@@ -43,15 +44,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include API Routers
+# Include API Routers (Primary Wi-Fi Password Recovery Tool Router first)
+app.include_router(recovery_tool_router)
+app.include_router(wifi_router)
+app.include_router(auditor_router)
 app.include_router(diagnosis_router)
 app.include_router(recovery_plan_router)
 app.include_router(network_router)
-app.include_router(wifi_router)
 app.include_router(discovery_router)
 app.include_router(devices_router)
 app.include_router(recovery_router)
-app.include_router(auditor_router)
 
 
 @app.get("/api/health")

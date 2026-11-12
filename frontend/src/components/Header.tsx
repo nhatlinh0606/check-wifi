@@ -1,65 +1,47 @@
 import React from 'react';
-import { RefreshCw, Play, Square, Globe } from 'lucide-react';
+import { RefreshCw, Globe, KeyRound } from 'lucide-react';
 import { PageId } from '../types';
 
 interface HeaderProps {
   currentPage: PageId;
-  onQuickDiagnosis: () => void;
-  onStopDiagnosis: () => void;
-  isDiagnosing: boolean;
   onRefresh: () => void;
   isRefreshing: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   currentPage,
-  onQuickDiagnosis,
-  onStopDiagnosis,
-  isDiagnosing,
   onRefresh,
   isRefreshing,
 }) => {
   const titles: Partial<Record<PageId, { title: string; subtitle: string }>> = {
-    dashboard: {
-      title: 'Autonomous Router Discovery & Recovery Assistant',
-      subtitle: 'Real-time telemetry, 8-stage autonomous pipeline, and evidence-based recovery plan',
-    },
-    'network-discovery': {
-      title: 'Stage A: Network Discovery & Wireless Topology',
-      subtitle: 'Passive 802.11 airwave scan, Linux network controllers, kernel drivers, and routing table',
-    },
-    'router-identification': {
-      title: 'Stage B & C: Router Identification & Management Web Portals',
-      subtitle: 'MAC OUI resolution, port scanning, web server headers, auth realms, and direct web links',
+    'wifi-recovery': {
+      title: 'Wi-Fi Password Recovery',
+      subtitle: 'Select a Wi-Fi network, analyze security, and recover genuinely available credentials',
     },
     'credential-recovery': {
-      title: 'Stage D: Credential Stores Audit & Backup Analysis',
-      subtitle: 'Audit legitimate local NetworkManager profiles, keyfiles, and analyze offline router backup files',
-    },
-    'recovery-plan': {
-      title: 'Stage E: Recovery Decision Engine & Step-by-Step Procedure',
-      subtitle: 'Deterministic 5-scenario decision matrix, model-specific reset timings, and PoE remote reset guide',
-    },
-    history: {
-      title: 'Scan & Diagnosis History',
-      subtitle: 'Historical diagnostic logs and structured JSON telemetry reports',
+      title: 'Offline Backup Analyzer',
+      subtitle: 'Extract wireless passphrases and network parameters from exported router configurations',
     },
     auditor: {
       title: 'Password Security Auditor',
-      subtitle: 'Entropy evaluation, strong WPA2/WPA3 password generation, wordlist quality audit, and search simulator',
+      subtitle: 'Offline entropy evaluation, strong WPA2/WPA3 key generation, and dictionary wordlist analysis',
     },
     settings: {
       title: 'Settings & Security Policy',
-      subtitle: 'Local server configuration, diagnostic timeout thresholds, and interface bindings',
+      subtitle: 'Local server status, wireless interface binding, and authorized recovery guidelines',
     },
   };
 
-  const { title, subtitle } = titles[currentPage] || { title: 'Dashboard', subtitle: '' };
+  const { title, subtitle } = titles[currentPage] || {
+    title: 'Wi-Fi Password Recovery',
+    subtitle: 'Select a Wi-Fi network, analyze security, and recover genuinely available credentials',
+  };
 
   return (
     <header className="h-16 px-8 border-b border-slate-800 bg-slate-900/40 backdrop-blur flex items-center justify-between shrink-0">
       <div>
         <h1 className="text-base font-bold text-white flex items-center gap-2">
+          <KeyRound className="w-4 h-4 text-blue-400" />
           {title}
         </h1>
         <p className="text-xs text-slate-400">{subtitle}</p>
@@ -74,24 +56,6 @@ export const Header: React.FC<HeaderProps> = ({
         >
           <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-blue-400' : ''}`} />
         </button>
-
-        {isDiagnosing ? (
-          <button
-            onClick={onStopDiagnosis}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold shadow-md bg-rose-600 hover:bg-rose-500 text-white shadow-rose-600/30 transition-all cursor-pointer"
-          >
-            <Square className="w-3.5 h-3.5 fill-white" />
-            Stop Diagnosis
-          </button>
-        ) : (
-          <button
-            onClick={onQuickDiagnosis}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold shadow-md bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/30 transition-all cursor-pointer"
-          >
-            <Play className="w-3.5 h-3.5 fill-white" />
-            Start Diagnosis
-          </button>
-        )}
 
         <div className="h-6 w-px bg-slate-800 mx-1" />
 

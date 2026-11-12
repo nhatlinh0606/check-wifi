@@ -11,9 +11,63 @@ import {
   DiagnosisStatus,
   FullDiagnosisResult,
   RecoveryPlan,
+  RecoveryResult,
 } from '../types';
 
 const API_BASE = '/api';
+
+// ============================================================================
+// Core Wi-Fi Password Recovery APIs (Primary Workflow)
+// ============================================================================
+
+export async function fetchNearbyNetworks(rescan: boolean = false): Promise<WifiNetwork[]> {
+  const res = await fetch(`${API_BASE}/recovery-tool/networks?rescan=${rescan}`);
+  if (!res.ok) {
+    // Fallback to /api/wifi/scan if needed
+    const fallback = await fetch(`${API_BASE}/wifi/scan?rescan=${rescan}`);
+    if (!fallback.ok) throw new Error('Failed to scan nearby Wi-Fi networks');
+    return fallback.json();
+  }
+  return res.json();
+}
+
+export async function traceTargetPassword(params: {
+  ssid: string;
+  bssid?: string;
+  backup_content?: string;
+  backup_filename?: string;
+}): Promise<RecoveryResult> {
+  const res = await fetch(`${API_BASE}/recovery-tool/trace`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'Failed to execute password trace');
+  }
+  return res.json();
+}
+
+export async function uploadRecoveryBackupFile(file: File): Promise<{
+  status: string;
+  filename: string;
+  bytes_analyzed: number;
+  content: string;
+  message: string;
+}> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await fetch(`${API_BASE}/recovery-tool/upload-backup`, {
+    method: 'POST',
+    body: formData,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'Failed to parse backup file');
+  }
+  return res.json();
+}
 
 // ============================================================================
 // Autonomous Diagnosis Pipeline APIs (Primary Workflow)
